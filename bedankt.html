@@ -323,11 +323,13 @@
     const input = document.getElementById('file-upload');
     const fileName = document.getElementById('file-name');
     const uploadBox = document.getElementById('upload-box');
+    var selectedFile = null;
 
     input.addEventListener('change', function () {
       if (input.files && input.files[0]) {
+        selectedFile = input.files[0];
         fileName.style.display = 'block';
-        fileName.textContent = 'Geselecteerd bestand: ' + input.files[0].name;
+        fileName.textContent = 'Geselecteerd bestand: ' + selectedFile.name;
       }
     });
 
@@ -338,17 +340,21 @@
       uploadBox.classList.remove('dragover');
       if (e.dataTransfer.files && e.dataTransfer.files[0]) {
         input.files = e.dataTransfer.files;
+        selectedFile = e.dataTransfer.files[0];
         fileName.style.display = 'block';
-        fileName.textContent = 'Geselecteerd bestand: ' + e.dataTransfer.files[0].name;
+        fileName.textContent = 'Geselecteerd bestand: ' + selectedFile.name;
       }
     });
 
     async function startUpload() {
-      const file = input.files && input.files[0];
+      const file = document.getElementById("file-upload").files[0] || selectedFile;
       const naam = document.getElementById('input-naam').value.trim();
       const email = document.getElementById('input-email').value.trim();
-      const btn = document.getElementById('upload-btn');
       const status = document.getElementById('upload-status');
+
+      const btn = document.getElementById('upload-btn');
+      btn.disabled = false;
+      btn.textContent = 'Uploaden';
 
       if (!naam) { showStatus('Vul je naam in.', 'error'); return; }
       if (!email || !email.includes('@')) { showStatus('Vul een geldig e-mailadres in.', 'error'); return; }
@@ -375,6 +381,7 @@
           document.getElementById('file-name').style.display = 'none';
           document.getElementById('file-name').textContent = '';
           document.getElementById('file-upload').value = '';
+          selectedFile = null;
           btn.textContent = 'Verzonden';
         } else {
           showStatus('Er ging iets mis. Stuur je brief naar info@incasso-check.nl', 'error');
