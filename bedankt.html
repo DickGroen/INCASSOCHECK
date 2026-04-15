@@ -368,7 +368,7 @@
         const data = await res.json();
 
         if (data.ok) {
-          showStatus('✓ Ontvangen! Je hoort binnen 24 uur van ons.', 'success');
+          showStatus('✓ Ontvangen! Je ontvangt je analyse morgen voor 17:00 per e-mail.', 'success');
           btn.textContent = 'Verzonden';
         } else {
           showStatus('Er ging iets mis. Stuur je brief naar info@incasso-check.nl', 'error');
