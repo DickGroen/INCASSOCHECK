@@ -350,10 +350,10 @@
       const btn = document.getElementById('upload-btn');
       const status = document.getElementById('upload-status');
 
-      if (!naam) return showStatus('Vul je naam in.', 'error');
-      if (!email || !email.includes('@')) return showStatus('Vul een geldig e-mailadres in.', 'error');
-      if (!file) return showStatus('Selecteer eerst je incassobrief.', 'error');
-      if (file.size > 10 * 1024 * 1024) return showStatus('Bestand is te groot. Max 10 MB.', 'error');
+      if (!naam) { showStatus('Vul je naam in.', 'error'); return; }
+      if (!email || !email.includes('@')) { showStatus('Vul een geldig e-mailadres in.', 'error'); return; }
+      if (!file) { showStatus('Selecteer eerst je incassobrief.', 'error'); return; }
+      if (file.size > 10 * 1024 * 1024) { showStatus('Bestand is te groot. Max 10 MB.', 'error'); return; }
 
       btn.disabled = true;
       btn.textContent = 'Bezig met uploaden...';
@@ -368,7 +368,13 @@
         const data = await res.json();
 
         if (data.ok) {
-          showStatus('✓ Ontvangen! Je ontvangt je analyse morgen voor 17:00 per e-mail.', 'success');
+          showStatus('✓ Ontvangen! Je ontvangt je analyse morgen voor 17:00 per e-mail. <a href="https://incasso-check.nl" style="color:#15803d;">Terug naar de website</a>', 'success');
+          // Reset formulier
+          document.getElementById('input-naam').value = '';
+          document.getElementById('input-email').value = '';
+          document.getElementById('file-name').style.display = 'none';
+          document.getElementById('file-name').textContent = '';
+          document.getElementById('file-upload').value = '';
           btn.textContent = 'Verzonden';
         } else {
           showStatus('Er ging iets mis. Stuur je brief naar info@incasso-check.nl', 'error');
@@ -385,7 +391,7 @@
     function showStatus(msg, type) {
       const el = document.getElementById('upload-status');
       el.style.display = 'block';
-      el.textContent = msg;
+      el.innerHTML = msg;
       el.style.background = type === 'success' ? '#ecfdf3' : '#fef2f2';
       el.style.color = type === 'success' ? '#15803d' : '#dc2626';
       el.style.border = type === 'success' ? '1px solid #ccebd6' : '1px solid #fecaca';
