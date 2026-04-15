@@ -299,8 +299,8 @@
         <div class="file-name" id="file-name"></div>
       </label>
 
-      <button class="cta" type="button" id="upload-btn" onclick="startUpload()" style="margin-top:12px;">
-        Uploaden
+      <button class="cta" type="button" id="upload-btn" onclick="startUpload()" style="margin-top:12px; opacity:0.5; cursor:not-allowed;" disabled>
+        Selecteer eerst je brief
       </button>
 
       <div id="upload-status" style="display:none; margin-top:14px; padding:12px 14px; border-radius:10px; font-size:14px; font-weight:600; text-align:center;"></div>
@@ -330,6 +330,11 @@
         selectedFile = input.files[0];
         fileName.style.display = 'block';
         fileName.textContent = 'Geselecteerd bestand: ' + selectedFile.name;
+        var btn = document.getElementById('upload-btn');
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+        btn.textContent = 'Uploaden';
       }
     });
 
