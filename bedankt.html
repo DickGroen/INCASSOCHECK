@@ -515,6 +515,7 @@
       const email = document.getElementById('input-email').value.trim();
       const btn = document.getElementById('upload-btn');
 
+      document.getElementById('upload-status').style.display = 'none';
       if (!naam) { showStatus('Vul je naam in.', 'error'); return; }
       if (!email || !email.includes('@')) { showStatus('Vul een geldig e-mailadres in.', 'error'); return; }
       if (!file) { showStatus('Selecteer eerst je incassobrief.', 'error'); return; }
@@ -522,6 +523,7 @@
 
       btn.disabled = true;
       btn.textContent = 'Bezig met uploaden...';
+      document.getElementById('upload-status').style.display = 'none';
 
       const formData = new FormData();
       formData.append('file', file);
