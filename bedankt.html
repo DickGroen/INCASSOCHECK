@@ -597,6 +597,8 @@
         const data = await res.json();
 
         if (data.ok) {
+          var bar = document.querySelector('.confirm-bar');
+          if (bar) bar.style.display = 'none';
           // Toon bevestiging
           document.querySelector('.card').innerHTML = `
             <div style="text-align:center; padding:20px 0;">
