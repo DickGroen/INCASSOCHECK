@@ -1,84 +1,37 @@
 import { callClaude } from './claude.js';
 import { fixMojibake } from './utils.js';
 
-const ANALYSE_PROMPT = `Je bent een juridisch assistent gespecialiseerd in Nederlandse incassozaken. Analyseer de bijgevoegde incassobrief. TAALREGELS: gebruik alleen correct Nederlands. Schrijf eurotekens altijd als het symbool euro (niet als EUR). Schrijf kopie altijd als kopie. Gebruik nooit het woord aanmandement - gebruik altijd aanmaning of 14-dagenbrief. Gebruik nooit vreemde tekens of encoding-fouten. BELANGRIJK: gebruik alleen gewone tekst en markdown. Geen code blocks, geen ASCII-art, geen kaders, geen backticks.
-
-Geef het rapport in deze vaste structuur:
-
-## 1. SAMENVATTING
-(kostenoverzicht als markdown tabel met eurotekens, dan: Op basis van deze brief lijkt het mogelijk dat... met korte inschatting)
-
-## 2. BEZWAARGRONDEN
-(selecteer alleen de 2-4 sterkste punten, gebruik voorzichtige taal: mogelijk, lijkt, kan wijzen op)
-
-## 3. STERKTE-INDICATOR
-(vetgedrukt: Sterk bezwaar / Mogelijk bezwaar / Weinig kans, dan korte onderbouwing)
-
-## MOGELIJKE BESPARING
-(vetgedrukt totaalbedrag met euroteken, specificeer per post, vermeld herzien totaal)
-
-Zet daarna exact de tekst [BRIEFHOOFD_START] op een nieuwe regel.
-
-Schrijf dan een korte bezwaarbrief van maximaal 1 pagina.
-Begin DIRECT met:
-[Datum], [Woonplaats]
-
-Dan twee lege regels.
-Dan het adresblok van het incassobureau.
-Dan twee lege regels.
-Dan:
-Betreft: Bezwaarschrift - [referentienummer]
-
-Dan twee lege regels.
-Dan:
-Geachte heer / mevrouw,
-
-Dan een lege regel.
-Dan:
-Hierbij maak ik bezwaar tegen de incassovordering met kenmerk [referentienummer].
-
-Dan de 2-4 bezwaarpunten als korte bullets.
-
-Dan:
-Gezien bovenstaande verzoek ik u vriendelijk om een nadere toelichting, specificatie van de vordering en bewijs van de grondslag. Totdat dit is opgehelderd, beschouw ik de vordering als betwist.
-
-Dan de afsluiting:
-In afwachting van uw reactie.
-Met vriendelijke groet,
-
-[vier lege regels]
-[Uw naam]
-[Woonplaats], [datum]
-
-Bijlagen:
-- Kopie van de ontvangen incassobrief d.d. [datum brief]
-
-Zet daarna exact de tekst [BRIEFHOOFD_EIND] op een nieuwe regel.
-
-Schrijf daarna een sectie:
-## TOELICHTING VOOR U
-met:
-- korte uitleg in simpele taal
-- volgende stap
-- en verplicht deze zin:
-Een bezwaar schort betaling niet automatisch op.
-
-Adviseer bij twijfel een jurist.`;
+// Fix 1 & 4: gebruik haiku.txt en sonnet.txt als prompts, verwijder inline ANALYSE_PROMPT.
+// wrangler.toml heeft [[rules]] type="Text" globs=["prompts/**/*.txt"] — imports werken direct.
+import HAIKU_PROMPT from '../prompts/haiku.txt';
+import SONNET_PROMPT from '../prompts/sonnet.txt';
 
 export async function generateAnalyse(env, { route, base64, mediaType }) {
-  const model =
-    route === 'ESCALATE_TO_SONNET'
-      ? 'claude-sonnet-4-6'
-      : 'claude-haiku-4-5-20251001';
+  const isSonnet = route === 'ESCALATE_TO_SONNET';
+
+  const model = isSonnet ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001';
+
+  // Fix 1: selecteer prompt op basis van route
+  const prompt = isSonnet ? SONNET_PROMPT : HAIKU_PROMPT;
+
+  // Fix 3: Sonnet krijgt meer ruimte vanwege uitgebreidere output-structuur
+  const maxTokens = isSonnet ? 5500 : 4500;
 
   const raw = await callClaude(env, {
     model,
-    maxTokens: 4500,
+    maxTokens,
     base64,
     mediaType,
-    prompt: ANALYSE_PROMPT
+    prompt
   });
 
-  return fixMojibake(raw || 'Analyse niet beschikbaar');
-}
+  const output = fixMojibake(raw || '');
 
+  // Fix 2: valideer aanwezigheid van markers vóór return
+  // Ontbrekende markers betekent afgekapte of afwijkende output — splitRapport zou dan falen
+  if (!output.includes('[BRIEFHOOFD_START]') || !output.includes('[BRIEFHOOFD_EIND]')) {
+    throw new Error('Generatie onvolledig: [BRIEFHOOFD_START] of [BRIEFHOOFD_EIND] ontbreekt in output');
+  }
+
+  return output;
+}
