@@ -7,6 +7,10 @@ compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 minify = true
 
+# Secrets (instellen via Cloudflare dashboard of CLI):
+#   wrangler secret put ANTHROPIC_API_KEY
+#   wrangler secret put RESEND_API_KEY
+
 [observability]
 enabled = true
 
