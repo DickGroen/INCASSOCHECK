@@ -223,10 +223,19 @@ export function maakRtfDocument(tekst) {
       continue;
     }
 
-    // Bullet: - of •
+    // Bullet: - of • — witruimte boven/onder, vet label vóór de eerste ':'
     if (/^[-•]\s/.test(line)) {
       const inhoud = line.replace(/^[-•]\s/, '');
-      rtf += '\\pard\\fi-360\\li360\\bullet\\tab ' + inhoud + '\\par\\pard ';
+      let bulletInhoud;
+      if (inhoud.includes(': ')) {
+        const kolonIdx = inhoud.indexOf(': ');
+        const label = inhoud.substring(0, kolonIdx);
+        const rest  = inhoud.substring(kolonIdx + 2);
+        bulletInhoud = `{\\b ${label}:} ${rest}`;
+      } else {
+        bulletInhoud = inhoud;
+      }
+      rtf += '\\pard\\fi-380\\li380\\sb120\\sa120\\bullet\\tab ' + bulletInhoud + '\\par\\pard ';
       i++;
       continue;
     }
