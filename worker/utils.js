@@ -11,12 +11,13 @@ export async function fileToBase64(file) {
   };
 }
 
-export function jsonResponse(data, status = 200) {
+export function jsonResponse(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*'
+      'Access-Control-Allow-Origin': '*',
+      ...extraHeaders
     }
   });
 }
@@ -45,7 +46,7 @@ export function splitRapport(rapport) {
       ? rapport.substring(endIdx + endMarker.length).trim()
       : '';
 
-    const analyse = toelichting ? analyseBase + ' ' + toelichting : analyseBase;
+    const analyse = toelichting ? analyseBase + '\n\n' + toelichting : analyseBase;
     return { analyse, bezwaar };
   }
 
@@ -103,46 +104,143 @@ export function fixMojibake(rapportRaw) {
   return fixed;
 }
 
+// ── RTF HELPERS ─────────────────────────────────────────────────────────────
+
+function escapeRtf(text) {
+  return text
+    .replace(/\\/g, '\\\\')
+    .replace(/{/g, '\\{')
+    .replace(/}/g, '\\}')
+    .replace(/&nbsp;/g, ' ')           // fix: HTML-entiteit → spatie
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\u20ac/g, '\\u8364?')   // €
+    .replace(/\u00eb/g, '\\u235?')    // ë
+    .replace(/\u00e9/g, '\\u233?')    // é
+    .replace(/\u00e8/g, '\\u232?')    // è
+    .replace(/\u00f6/g, '\\u246?')    // ö
+    .replace(/\u00fc/g, '\\u252?')    // ü
+    .replace(/\u00e0/g, '\\u224?')    // à
+    .replace(/\u2013/g, '\\u8211?')   // –
+    .replace(/\u2014/g, '\\u8212?');  // —
+}
+
+function applyInlineFormatting(line) {
+  // **vet** → RTF bold
+  return line.replace(/\*\*([^*]+)\*\*/g, '{\\b $1}');
+}
+
+function rtfHeader() {
+  return '{\\rtf1\\ansi\\ansicpg1252\\deff0'
+    + '{\\fonttbl{\\f0\\fswiss\\fcharset0 Arial;}}'
+    + '{\\colortbl;\\red27\\green58\\blue140;}'
+    + '\\f0\\fs24\\sa200\\sl280\\slmult1 ';
+}
+
+// Zet een markdown-tabel om naar een RTF-tabel
+function maakRtfTabel(rows) {
+  // Verwijder scheidingsrijen (---|---|---)
+  const dataRows = rows.filter(r => !r.replace(/[\s|:-]/g, ''));
+  const filtered = rows.filter(r => !/^[\s|:\-]+$/.test(r));
+
+  if (filtered.length === 0) return '';
+
+  // Bereken kolombreedtes — verdeel 8640 twips (ca. 15cm) gelijkmatig
+  const cols = filtered[0].split('|').filter(c => c.trim() !== '');
+  const colCount = cols.length;
+  const colWidth = Math.floor(8640 / colCount);
+
+  let rtf = '';
+  filtered.forEach((row, rowIdx) => {
+    const cells = row.split('|').filter(c => c.trim() !== '');
+    rtf += '\\trowd\\trgaph108\\trleft0';
+
+    // Definieer celgrenzen
+    for (let c = 0; c < colCount; c++) {
+      rtf += `\\cellx${(c + 1) * colWidth}`;
+    }
+
+    // Celinhoud
+    cells.forEach((cell, ci) => {
+      const inhoud = escapeRtf(cell.trim());
+      const opgemaakt = applyInlineFormatting(inhoud);
+      if (rowIdx === 0) {
+        // Eerste rij = koptekst in bold
+        rtf += `\\pard\\intbl{\\b ${opgemaakt}}\\cell `;
+      } else {
+        rtf += `\\pard\\intbl ${opgemaakt}\\cell `;
+      }
+    });
+
+    rtf += '\\row ';
+  });
+
+  return rtf + '\\pard\\sa200 ';
+}
+
 export function maakRtfDocument(tekst) {
   const lines = tekst.split('\n');
-  let rtf = '{\\rtf1\\ansi\\ansicpg1252\\deff0{\\fonttbl{\\f0\\fswiss\\fcharset0 Arial;}}{\\colortbl;\\red27\\green58\\blue140;}\\f0\\fs24\\sa200\\sl280\\slmult1 ';
+  let rtf = rtfHeader();
+  let i = 0;
 
-  for (let line of lines) {
-    if (line === '') {
-      rtf += '\\par ';
+  while (i < lines.length) {
+    let line = lines[i];
+
+    // Fix: sla lege scheidingslijnen (---) over
+    if (/^[-–—]{2,}\s*$/.test(line.trim())) {
+      i++;
       continue;
     }
 
-    line = line.replace(/\\/g, '\\\\').replace(/{/g, '\\{').replace(/}/g, '\\}');
-    line = line.replace(/\u20ac/g, '\\u8364?');
-    line = line.replace(/\u00eb/g, '\\u235?');
-    line = line.replace(/\u00e9/g, '\\u233?');
-    line = line.replace(/\u00e8/g, '\\u232?');
-    line = line.replace(/\u00f6/g, '\\u246?');
-    line = line.replace(/\u00fc/g, '\\u252?');
-    line = line.replace(/\u00e0/g, '\\u224?');
-    line = line.replace(/\u2013/g, '\\u8211?');
-    line = line.replace(/\u2014/g, '\\u8212?');
-    line = line.replace(/\*\*([^*]+)\*\*/g, '{\\b $1}');
+    // Fix: verzamel en render markdown-tabel
+    if (line.trim().startsWith('|')) {
+      const tabelRows = [];
+      while (i < lines.length && lines[i].trim().startsWith('|')) {
+        tabelRows.push(lines[i]);
+        i++;
+      }
+      rtf += maakRtfTabel(tabelRows);
+      continue;
+    }
 
-    if (line.match(/^#{1,4} /)) {
+    // Lege regel
+    if (line.trim() === '') {
+      rtf += '\\par ';
+      i++;
+      continue;
+    }
+
+    // Escape en inline opmaak toepassen
+    line = escapeRtf(line);
+    line = applyInlineFormatting(line);
+
+    // Koptekst ## / ### etc.
+    if (/^#{1,4} /.test(line)) {
       const kop = line.replace(/^#{1,4} /, '');
       rtf += '\\pard\\sb200{\\b\\cf1\\fs26 ' + kop + '}\\par\\pard ';
+      i++;
       continue;
     }
 
-    if (line.indexOf('- ') === 0) {
-      rtf += '\\pard\\fi-360\\li360\\bullet\\tab ' + line.substring(2) + '\\par\\pard ';
-    } else {
-      rtf += line + '\\par ';
+    // Bullet: - of •
+    if (/^[-•]\s/.test(line)) {
+      const inhoud = line.replace(/^[-•]\s/, '');
+      rtf += '\\pard\\fi-360\\li360\\bullet\\tab ' + inhoud + '\\par\\pard ';
+      i++;
+      continue;
     }
+
+    // Gewone alinea
+    rtf += line + '\\par ';
+    i++;
   }
 
   rtf += '}';
   return rtf;
 }
 
+// Analyse gebruikt dezelfde volwaardige converter
 export function maakAnalyseRtfMetTabel(tekst) {
-  // houdt het nu simpel: analyse als gewone RTF
   return maakRtfDocument(tekst);
 }
