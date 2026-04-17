@@ -17,9 +17,13 @@ export async function generateAnalyse(env, { route, base64, mediaType }) {
   // Fix 3: Sonnet krijgt meer ruimte vanwege uitgebreidere output-structuur
   const maxTokens = isSonnet ? 5500 : 4500;
 
+  // Fix 1: Sonnet krijgt meer timeout-ruimte vanwege hogere maxTokens en complexere output
+  const timeoutMs = isSonnet ? 45000 : 25000;
+
   const raw = await callClaude(env, {
     model,
     maxTokens,
+    timeoutMs,
     base64,
     mediaType,
     prompt
