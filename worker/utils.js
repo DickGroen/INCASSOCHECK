@@ -134,8 +134,8 @@ function applyInlineFormatting(line) {
 function rtfHeader() {
   return '{\\rtf1\\ansi\\ansicpg1252\\deff0'
     + '{\\fonttbl{\\f0\\fswiss\\fcharset0 Arial;}}'
-    + '{\\colortbl;\\red27\\green58\\blue140;}'
-    + '\\f0\\fs24\\sa200\\sl280\\slmult1 ';
+    + '{\\colortbl;\\red27\\green58\\blue140;\\red235\\green242\\blue255;}'
+    + '\\f0\\fs24\\sa160\\sl300\\slmult1 ';
 }
 
 // Zet een markdown-tabel om naar een RTF-tabel
@@ -156,9 +156,13 @@ function maakRtfTabel(rows) {
     const cells = row.split('|').filter(c => c.trim() !== '');
     rtf += '\\trowd\\trgaph108\\trleft0';
 
-    // Definieer celgrenzen
+    // Definieer celgrenzen met borders; koptekstrij lichtblauwe achtergrond (cf2)
     for (let c = 0; c < colCount; c++) {
-      rtf += `\\cellx${(c + 1) * colWidth}`;
+      if (rowIdx === 0) {
+        rtf += `\\clbrdrt\\brdrs\\brdrw15\\clbrdrl\\brdrs\\brdrw15\\clbrdrb\\brdrs\\brdrw15\\clbrdrr\\brdrs\\brdrw15\\clcbpat2\\cellx${(c + 1) * colWidth}`;
+      } else {
+        rtf += `\\clbrdrt\\brdrs\\brdrw5\\clbrdrl\\brdrs\\brdrw5\\clbrdrb\\brdrs\\brdrw5\\clbrdrr\\brdrs\\brdrw5\\cellx${(c + 1) * colWidth}`;
+      }
     }
 
     // Celinhoud
@@ -166,10 +170,9 @@ function maakRtfTabel(rows) {
       const inhoud = escapeRtf(cell.trim());
       const opgemaakt = applyInlineFormatting(inhoud);
       if (rowIdx === 0) {
-        // Eerste rij = koptekst in bold
-        rtf += `\\pard\\intbl{\\b ${opgemaakt}}\\cell `;
+        rtf += `\\pard\\intbl\\sb80\\sa80{\\b ${opgemaakt}}\\cell `;
       } else {
-        rtf += `\\pard\\intbl ${opgemaakt}\\cell `;
+        rtf += `\\pard\\intbl\\sb60\\sa60 ${opgemaakt}\\cell `;
       }
     });
 
@@ -204,6 +207,18 @@ export function maakRtfDocument(tekst) {
       continue;
     }
 
+    // Sla &nbsp;-regels over (HTML-opvulregels van de generator)
+    if (/^(\s*&nbsp;\s*)+$/.test(line)) {
+      i++;
+      continue;
+    }
+
+    // Sla &nbsp;-regels over (HTML-opvulregels die de generator soms instuurt)
+    if (/^(\s*&nbsp;\s*)+$/.test(line)) {
+      i++;
+      continue;
+    }
+
     // Lege regel
     if (line.trim() === '') {
       rtf += '\\par ';
@@ -218,7 +233,14 @@ export function maakRtfDocument(tekst) {
     // Koptekst ## / ### etc.
     if (/^#{1,4} /.test(line)) {
       const kop = line.replace(/^#{1,4} /, '');
-      rtf += '\\pard\\sb200{\\b\\cf1\\fs26 ' + kop + '}\\par\\pard ';
+      rtf += '\\pard\\sb300{\\b\\cf1\\fs28 ' + kop + '}\\par\\pard ';
+      i++;
+      continue;
+    }
+
+    // Subkopje: "Grond 1:", "Grond 2." etc.
+    if (/^Grond \\d+[:.]/i.test(line)) {
+      rtf += '\\pard\\sb200{\\b\\fs24 ' + line + '}\\par\\pard ';
       i++;
       continue;
     }
@@ -236,6 +258,20 @@ export function maakRtfDocument(tekst) {
         bulletInhoud = inhoud;
       }
       rtf += '\\pard\\fi-380\\li380\\sb120\\sa120\\bullet\\tab ' + bulletInhoud + '\\par\\pard ';
+      i++;
+      continue;
+    }
+
+    // Handtekeningruimte: na "Met vriendelijke groet," 4 lege regels invoegen
+    if (/met vriendelijke groet/i.test(line)) {
+      rtf += line + '\\par \\par \\par \\par \\par ';
+      i++;
+      continue;
+    }
+
+    // Handtekeningruimte na "Met vriendelijke groet,"
+    if (/met vriendelijke groet/i.test(line)) {
+      rtf += line + '\\par \\par \\par \\par \\par ';
       i++;
       continue;
     }
