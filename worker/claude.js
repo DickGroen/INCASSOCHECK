@@ -13,14 +13,15 @@ export async function callClaude(env, { model, base64, mediaType, prompt, maxTok
         {
           role: 'user',
           content: [
-            {
-              type: 'document',
-              source: {
-                type: 'base64',
-                media_type: mediaType,
-                data: base64
-              }
-            },
+            mediaType === 'application/pdf'
+              ? {
+                  type: 'document',
+                  source: { type: 'base64', media_type: mediaType, data: base64 }
+                }
+              : {
+                  type: 'image',
+                  source: { type: 'base64', media_type: mediaType, data: base64 }
+                },
             {
               type: 'text',
               text: prompt
