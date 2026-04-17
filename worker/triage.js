@@ -109,27 +109,61 @@ ROUTINGREGELS:
 
 Antwoord uitsluitend met geldig JSON.`;
 
+// Fix 3: volledige fallback met alle velden die door index.js en consumers verwacht worden
+const TRIAGE_FALLBACK = {
+  document_type: 'onbekend',
+  detected_party: null,
+  original_creditor: null,
+  reference_number: null,
+  amount_total: null,
+  deadline_detected: false,
+  deadline_date: null,
+  missing_information: true,
+  missing_information_items: [],
+  potential_objection_grounds: [],
+  complexity_level: 'high',
+  confidence_score: 3,
+  legal_risk_flag: false,
+  recommended_route: 'ESCALATE_TO_SONNET',
+  recommended_next_step: 'escalate'
+};
+
+// Fix 2: valideer dat de kritieke routing-velden aanwezig en van het juiste type zijn
+function isGeldigTriageResultaat(obj) {
+  return (
+    obj !== null &&
+    typeof obj === 'object' &&
+    !Array.isArray(obj) &&
+    typeof obj.confidence_score === 'number' &&
+    typeof obj.complexity_level === 'string' &&
+    typeof obj.legal_risk_flag === 'boolean'
+  );
+}
+
 export async function runTriage(env, base64, mediaType) {
   const raw = await callClaude(env, {
     model: 'claude-haiku-4-5-20251001',
-    maxTokens: 1000,
+    maxTokens: 1500, // Fix 4: was 1000 — voorkomt afgekapte JSON bij complexe brieven
     base64,
     mediaType,
     prompt: TRIAGE_PROMPT
   });
 
-  const cleaned = raw.replace(/```json|```/g, '').trim();
+  // Fix 1: extraheer het eerste {...}-blok, ook als er tekst voor of na staat
+  const match = raw.match(/\{[\s\S]*\}/);
+  const cleaned = match ? match[0] : '';
 
   try {
-    return JSON.parse(cleaned);
+    const parsed = JSON.parse(cleaned);
+
+    // Fix 2: val terug op fallback als kritieke velden ontbreken of verkeerd type hebben
+    if (!isGeldigTriageResultaat(parsed)) {
+      return TRIAGE_FALLBACK;
+    }
+
+    return parsed;
   } catch {
-    // veiliger dan default HANDLE_WITH_HAIKU
-    return {
-      document_type: 'onbekend',
-      complexity_level: 'high',
-      confidence_score: 3,
-      legal_risk_flag: false,
-      recommended_route: 'ESCALATE_TO_SONNET'
-    };
+    // Fix 3: volledige fallback in plaats van kaal object
+    return TRIAGE_FALLBACK;
   }
 }
