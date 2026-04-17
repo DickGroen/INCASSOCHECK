@@ -1,9 +1,43 @@
+// Fix 1: escape alle user-input vóór gebruik in HTML — voorkomt XSS in admin- en klant-mails
+function escapeHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// Fix 2: lees Resend-foutberichten als JSON met fallback naar plaintext
+async function resendFout(res, label) {
+  let body;
+  try {
+    const json = await res.json();
+    body = json.message || JSON.stringify(json);
+  } catch {
+    body = await res.text();
+  }
+  throw new Error(`Resend fout (${label}): ${body}`);
+}
+
 export async function sendAdminEmail(env, { naam, email, bestandsnaam, base64, route, triage }) {
+  // Fix 3: check bestandsgrootte vóór verzending — base64 is ~33% groter dan het origineel
+  const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024; // 8 MB base64-safe grens
+  const attachmentSize = Math.ceil(base64.length * 0.75);
+  const attachments = attachmentSize <= MAX_ATTACHMENT_BYTES
+    ? [{ filename: bestandsnaam, content: base64 }]
+    : [];
+  const grootteWaarschuwing = attachmentSize > MAX_ATTACHMENT_BYTES
+    ? `<p style="color:#b45309;background:#fef3c7;padding:10px;border-radius:6px;">
+        ⚠️ Bestand te groot voor bijlage (${Math.round(attachmentSize / 1024 / 1024)} MB) — niet meegestuurd.
+       </p>`
+    : '';
+
+  // Fix 1: escapeHtml op alle user-input in de HTML-body
   const triageInfo =
-    `<p><strong>Route:</strong> ${route}</p>` +
-    `<p><strong>Bedrag:</strong> ${triage.amount_total || 'onbekend'}</p>` +
-    `<p><strong>Complexiteit:</strong> ${triage.complexity_level || 'onbekend'}</p>` +
-    `<p><strong>Confidence:</strong> ${triage.confidence_score || 'onbekend'}/10</p>` +
+    `<p><strong>Route:</strong> ${escapeHtml(route)}</p>` +
+    `<p><strong>Bedrag:</strong> ${escapeHtml(triage.amount_total ?? 'onbekend')}</p>` +
+    `<p><strong>Complexiteit:</strong> ${escapeHtml(triage.complexity_level ?? 'onbekend')}</p>` +
+    `<p><strong>Confidence:</strong> ${escapeHtml(triage.confidence_score ?? 'onbekend')}/10</p>` +
     `<p><strong>Juridisch risico:</strong> ${triage.legal_risk_flag ? 'JA' : 'nee'}</p>`;
 
   const adminRes = await fetch('https://api.resend.com/emails', {
@@ -15,19 +49,19 @@ export async function sendAdminEmail(env, { naam, email, bestandsnaam, base64, r
     body: JSON.stringify({
       from: 'Incasso Check <noreply@incasso-check.nl>',
       to: ['info@incasso-check.nl'],
-      subject: `Nieuwe aanvraag [${route}]: ${naam} (${email})`,
+      subject: `Nieuwe aanvraag [${route}]: ${escapeHtml(naam)} (${escapeHtml(email)})`,
       html:
         `<h2>Nieuwe aanvraag</h2>` +
-        `<p><strong>Naam:</strong> ${naam}</p>` +
-        `<p><strong>Email:</strong> ${email}</p><hr>` +
+        grootteWaarschuwing +
+        `<p><strong>Naam:</strong> ${escapeHtml(naam)}</p>` +
+        `<p><strong>Email:</strong> ${escapeHtml(email)}</p><hr>` +
         triageInfo,
-      attachments: [{ filename: bestandsnaam, content: base64 }]
+      attachments
     })
   });
-  if (!adminRes.ok) {
-    const err = await adminRes.text();
-    throw new Error(`Resend fout (admin): ${err}`);
-  }
+
+  // Fix 2: leesbare foutmelding via resendFout helper
+  if (!adminRes.ok) await resendFout(adminRes, 'admin');
 }
 
 export async function sendCustomerFallback(env, { email, naam, scheduledAt }) {
@@ -48,7 +82,8 @@ export async function sendCustomerFallback(env, { email, naam, scheduledAt }) {
         '<h1 style="color:#fff;margin:0;font-size:20px;">Uw aanvraag is ontvangen</h1>' +
         '</div>' +
         '<div style="padding:24px 28px;">' +
-        `<p>Beste <strong>${naam}</strong>,</p>` +
+        // Fix 1: escapeHtml op naam
+        `<p>Beste <strong>${escapeHtml(naam)}</strong>,</p>` +
         '<p>Uw incassobrief is ontvangen en wordt beoordeeld door ons team.</p>' +
         '<p style="background:#fff3cd;padding:14px;border-radius:8px;border-left:4px solid #f59e0b;">' +
         'Deze brief lijkt juridisch complexer dan standaard incassozaken. Daarom geven we geen automatische analyse. Ons team neemt contact met u op.' +
@@ -58,10 +93,9 @@ export async function sendCustomerFallback(env, { email, naam, scheduledAt }) {
         '</div></div>'
     })
   });
-  if (!fallbackRes.ok) {
-    const err = await fallbackRes.text();
-    throw new Error(`Resend fout (fallback): ${err}`);
-  }
+
+  // Fix 2
+  if (!fallbackRes.ok) await resendFout(fallbackRes, 'fallback');
 }
 
 export async function sendCustomerEmail(env, { email, naam, scheduledAt, attachments }) {
@@ -76,24 +110,26 @@ export async function sendCustomerEmail(env, { email, naam, scheduledAt, attachm
       to: [email],
       subject: 'Uw incasso-analyse is klaar - Incasso Check NL',
       scheduled_at: scheduledAt,
+      // Fix 1: naam wordt geëscaped binnen makeIntroEmail
       html: makeIntroEmail(naam),
       attachments
     })
   });
-  if (!customerRes.ok) {
-    const err = await customerRes.text();
-    throw new Error(`Resend fout (klant): ${err}`);
-  }
+
+  // Fix 2
+  if (!customerRes.ok) await resendFout(customerRes, 'klant');
 }
 
 function makeIntroEmail(naam) {
+  // Fix 1: escapeHtml op naam
+  const veiligNaam = escapeHtml(naam);
   return '<div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;">'
     + '<div style="background:#1b3a8c;padding:24px 28px;">'
     + '<h1 style="color:#fff;margin:0;font-size:20px;">Uw analyse is klaar</h1>'
     + '<p style="color:#a5b4d4;margin:4px 0 0;font-size:13px;">Incasso Check NL</p>'
     + '</div>'
     + '<div style="padding:24px 28px;background:#f8faff;border-left:4px solid #1b3a8c;">'
-    + `<p style="margin:0;">Beste <strong>${naam}</strong>,</p>`
+    + `<p style="margin:0;">Beste <strong>${veiligNaam}</strong>,</p>`
     + '<p style="margin:10px 0 0;color:#374151;">Uw incasso-analyse is klaar. U vindt de bijlagen in deze e-mail.</p>'
     + '</div>'
     + '<div style="padding:20px 28px;">'
