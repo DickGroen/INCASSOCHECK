@@ -1,864 +1,126 @@
-<!DOCTYPE html>
-<html lang="nl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Aanmaning ontvangen? Check of je terecht betaalt | Incasso Check NL</title>
-<meta name="description" content="Upload je incassobrief en ontdek of de vordering terecht is. Analyse inclusief bezwaarbrief. Resultaat binnen 24 uur per e-mail. Eenmalig €49.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300&display=swap" rel="stylesheet">
-<style>
-  /* ── RESET & BASE ─────────────────────────────────────────── */
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+import { runTriage } from './triage.js';
+import { generateAnalyse } from './generator.js';
+import { sendAdminEmail, sendCustomerEmail, sendCustomerFallback } from './mailer.js';
+import {
+  jsonResponse,
+  fileToBase64,
+  getVolgendedag16u,
+  splitRapport,
+  maakRtfDocument,
+  maakAnalyseRtfMetTabel
+} from './utils.js';
 
-  :root {
-    --ink:      #0D1117;
-    --ink-2:    #1C2333;
-    --ink-3:    #2D3748;
-    --muted:    #6B7A90;
-    --muted-2:  #A0AABB;
-    --line:     #E2E8F0;
-    --surface:  #F7F9FC;
-    --white:    #FFFFFF;
-    --red:      #C0392B;
-    --red-soft: #FDECEA;
-    --green:    #1A7A4A;
-    --green-soft:#E8F5EE;
-    --amber:    #B45309;
-    --amber-soft:#FEF3C7;
-    --accent:   #1B3A8C;
-    --accent-2: #2E5FAC;
-    --accent-soft:#EBF1FF;
-  }
-
-  html { scroll-behavior: smooth; }
-
-  body {
-    font-family: 'DM Sans', sans-serif;
-    font-size: 16px;
-    line-height: 1.65;
-    color: var(--ink);
-    background: var(--white);
-    -webkit-font-smoothing: antialiased;
-  }
-
-  h1,h2,h3,h4 {
-    font-family: 'DM Sans', sans-serif;
-    font-weight: 700;
-    line-height: 1.2;
-  }
-
-  a { color: inherit; text-decoration: none; }
-  img { max-width: 100%; display: block; }
-
-  /* ── LAYOUT ───────────────────────────────────────────────── */
-  .container { max-width: 860px; margin: 0 auto; padding: 0 24px; }
-  .container--wide { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
-
-  /* ── HEADER ───────────────────────────────────────────────── */
-  .site-header {
-    position: sticky; top: 0; z-index: 100;
-    background: rgba(255,255,255,0.97);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--line);
-    padding: 14px 0;
-  }
-  .site-header__inner {
-    display: flex; align-items: center; justify-content: center; gap: 24px;
-  }
-  .logo {
-    font-family: 'DM Sans', sans-serif;
-    font-weight: 700; font-size: 1.05rem;
-    color: var(--accent);
-    display: flex; align-items: center; gap: 8px;
-  }
-  .logo-dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: var(--red); display: inline-block;
-  }
-  .header-cta {
-    background: var(--accent); color: var(--white);
-    padding: 9px 20px; border-radius: 6px;
-    font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.88rem;
-    transition: background 0.2s;
-    cursor: pointer; border: none;
-  }
-  .header-cta:hover { background: var(--ink); }
-
-  /* ── HERO ─────────────────────────────────────────────────── */
-  .hero {
-    padding: 64px 0 52px;
-    border-bottom: 1px solid var(--line);
-  }
-  .hero__eyebrow {
-    display: inline-flex; align-items: center; gap: 8px;
-    background: var(--red-soft); color: var(--red);
-    padding: 5px 14px; border-radius: 100px;
-    font-size: 0.78rem; font-weight: 500; letter-spacing: 0.03em;
-    text-transform: uppercase; margin-bottom: 22px;
-  }
-  .hero__eyebrow-dot {
-    width: 6px; height: 6px; background: var(--red);
-    border-radius: 50%; animation: blink 1.4s infinite;
-  }
-  @keyframes blink {
-    0%,100% { opacity: 1; } 50% { opacity: 0.3; }
-  }
-  .hero h1 {
-    font-size: clamp(1.8rem, 4.5vw, 2.9rem);
-    font-weight: 700; color: var(--ink);
-    max-width: 700px; margin-bottom: 16px;
-    line-height: 1.2;
-  }
-  .hero h1 em {
-    font-style: normal; color: var(--accent);
-  }
-  .hero__sub {
-    font-size: 1.05rem; color: var(--ink-3);
-    max-width: 560px; margin-bottom: 28px; font-weight: 400;
-    line-height: 1.7;
-  }
-
-  /* ── VALUE STRIP ──────────────────────────────────────────── */
-  .value-strip {
-    display: flex; flex-wrap: wrap; gap: 10px 20px;
-    margin-bottom: 32px;
-    padding: 18px 20px;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-  }
-  .value-item {
-    display: flex; align-items: center; gap: 8px;
-    font-size: 0.88rem; color: var(--ink-3); font-weight: 500;
-  }
-  .value-item .vi-check {
-    color: var(--green); font-size: 1rem; font-weight: 700; flex-shrink: 0;
-  }
-
-  /* ── TRUST BAR ────────────────────────────────────────────── */
-  .trust-bar {
-    display: flex; flex-wrap: wrap; gap: 16px;
-    margin-bottom: 36px;
-  }
-  .trust-item {
-    display: flex; align-items: center; gap: 7px;
-    font-size: 0.82rem; color: var(--muted); font-weight: 400;
-  }
-  .trust-item svg { flex-shrink: 0; }
-
-  /* ── UPLOAD SECTION ───────────────────────────────────────── */
-  .upload-section {
-    background: var(--surface);
-    border: 1.5px solid var(--line);
-    border-radius: 12px;
-    padding: 36px 32px;
-    text-align: center;
-    transition: border-color 0.2s, background 0.2s;
-    cursor: pointer;
-    position: relative;
-  }
-  .upload-section:hover, .upload-section.drag-over {
-    border-color: var(--accent-2);
-    background: var(--accent-soft);
-  }
-  .upload-icon {
-    width: 52px; height: 52px;
-    background: var(--white);
-    border: 1.5px solid var(--line);
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 14px;
-    transition: border-color 0.2s;
-  }
-  .upload-section:hover .upload-icon { border-color: var(--accent-2); }
-  .upload-label {
-    font-family: 'DM Sans', sans-serif;
-    font-weight: 600; font-size: 1rem; color: var(--ink);
-    margin-bottom: 6px;
-  }
-  .upload-hint { font-size: 0.82rem; color: var(--muted); }
-  #file-input { display: none; }
-
-  /* ── INTAKE CONFIRM (shows after upload) ──────────────────── */
-  .teaser {
-    display: none;
-    background: var(--white);
-    border: 1.5px solid var(--line);
-    border-radius: 12px;
-    overflow: hidden;
-    margin-top: 16px;
-    animation: fadeUp 0.4s ease;
-  }
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  .teaser.visible { display: block; }
-  .teaser__header {
-    background: var(--ink); color: var(--white);
-    padding: 18px 24px;
-    display: flex; align-items: center; justify-content: center; gap: 24px;
-    flex-wrap: wrap; gap: 12px;
-  }
-  .teaser__company {
-    font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.95rem;
-  }
-  .teaser__status-label {
-    background: var(--green-soft); color: var(--green);
-    padding: 4px 12px; border-radius: 100px;
-    font-size: 0.75rem; font-weight: 600;
-  }
-  .teaser__body { padding: 22px 24px; }
-  .teaser__found {
-    font-family: 'DM Sans', sans-serif; font-weight: 700;
-    font-size: 1rem; color: var(--ink); margin-bottom: 6px;
-  }
-  .teaser__sub { font-size: 0.88rem; color: var(--muted); margin-bottom: 20px; line-height: 1.6; }
-  .teaser__locked {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 14px 18px;
-    display: flex; align-items: center; gap: 14px;
-  }
-  .lock-icon {
-    width: 36px; height: 36px; flex-shrink: 0;
-    background: var(--ink); border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .teaser__locked-text { font-size: 0.83rem; color: var(--muted); }
-  .teaser__locked-text strong { color: var(--ink); display: block; font-size: 0.9rem; margin-bottom: 2px; }
-
-  /* ── CTA BUTTON ───────────────────────────────────────────── */
-  .cta-wrap { margin-top: 20px; }
-  .cta-main {
-    display: block; width: 100%;
-    background: var(--accent); color: var(--white);
-    padding: 18px 32px; border-radius: 8px;
-    font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 1rem;
-    letter-spacing: 0.01em; text-align: center;
-    border: none; cursor: pointer;
-    transition: background 0.2s, transform 0.1s;
-  }
-  .cta-main:hover { background: var(--ink); transform: translateY(-1px); }
-  .cta-main:active { transform: translateY(0); }
-  .cta-sub {
-    text-align: center; margin-top: 10px;
-    font-size: 0.78rem; color: var(--muted);
-  }
-
-  /* ── HOW IT WORKS ─────────────────────────────────────────── */
-  .section { padding: 68px 0; border-bottom: 1px solid var(--line); }
-  .section-label {
-    font-family: 'DM Sans', sans-serif; font-weight: 600;
-    font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase;
-    color: var(--accent-2); margin-bottom: 10px;
-  }
-  .section h2 {
-    font-size: clamp(1.4rem, 2.8vw, 2rem);
-    font-weight: 700; color: var(--ink); margin-bottom: 44px;
-  }
-  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 32px; }
-  .step { position: relative; }
-  .step__num {
-    font-family: 'DM Sans', sans-serif; font-weight: 700;
-    font-size: 2.4rem; color: var(--line);
-    line-height: 1; margin-bottom: 12px;
-  }
-  .step__title {
-    font-family: 'DM Sans', sans-serif; font-weight: 700;
-    font-size: 1rem; color: var(--ink); margin-bottom: 8px;
-  }
-  .step__desc { font-size: 0.88rem; color: var(--muted); line-height: 1.7; }
-
-  /* ── REPORT PREVIEW ───────────────────────────────────────── */
-  .report-preview {
-    background: var(--white);
-    border: 1.5px solid var(--line);
-    border-radius: 12px;
-    overflow: hidden;
-  }
-  .report-preview__header {
-    background: var(--ink-2); color: var(--white);
-    padding: 16px 24px;
-    font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.85rem;
-    display: flex; align-items: center; gap: 8px;
-  }
-  .report-row {
-    display: grid; grid-template-columns: 1fr 100px 80px;
-    padding: 14px 24px; border-bottom: 1px solid var(--line);
-    font-size: 0.85rem; align-items: center; gap: 12px;
-  }
-  .report-row:last-child { border-bottom: none; }
-  .report-row__label { color: var(--ink-3); font-weight: 400; }
-  .badge {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 3px 10px; border-radius: 100px;
-    font-size: 0.75rem; font-weight: 600; font-family: 'DM Sans', sans-serif;
-  }
-  .badge--green { background: var(--green-soft); color: var(--green); }
-  .badge--amber { background: var(--amber-soft); color: var(--amber); }
-  .badge--red   { background: var(--red-soft);   color: var(--red); }
-  .badge-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
-  .kans { font-size: 0.78rem; color: var(--muted); font-weight: 500; }
-  .report-footer {
-    background: var(--surface); padding: 16px 24px;
-    font-family: 'DM Sans', sans-serif; font-weight: 600;
-    font-size: 0.88rem; color: var(--ink-3);
-    display: flex; align-items: center; gap: 8px;
-  }
-
-  /* ── SOCIAL PROOF ─────────────────────────────────────────── */
-  .reviews { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
-  .review {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 10px; padding: 20px 22px;
-    transition: border-color 0.2s;
-  }
-  .review:hover { border-color: var(--accent-2); }
-  .stars { color: #F59E0B; font-size: 0.85rem; margin-bottom: 10px; letter-spacing: 2px; }
-  .review__text { font-size: 0.88rem; color: var(--ink-3); line-height: 1.65; margin-bottom: 12px; font-style: italic; }
-  .review__author { font-size: 0.78rem; color: var(--muted); font-weight: 500; }
-
-  /* ── FAQ ──────────────────────────────────────────────────── */
-  .faq { display: grid; gap: 0; }
-  .faq-item {
-    border-bottom: 1px solid var(--line);
-    overflow: hidden;
-  }
-  .faq-q {
-    display: flex; align-items: center; justify-content: center; gap: 24px;
-    padding: 20px 4px; cursor: pointer; gap: 16px;
-    font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.95rem; color: var(--ink);
-    list-style: none; user-select: none;
-  }
-  .faq-q:hover { color: var(--accent); }
-  .faq-chevron {
-    flex-shrink: 0; transition: transform 0.3s;
-    color: var(--muted);
-  }
-  .faq-item.open .faq-chevron { transform: rotate(180deg); }
-  .faq-a {
-    max-height: 0; overflow: hidden;
-    transition: max-height 0.35s ease, padding 0.2s;
-    font-size: 0.88rem; color: var(--muted); line-height: 1.75;
-    padding: 0 4px;
-  }
-  .faq-item.open .faq-a { max-height: 200px; padding-bottom: 20px; }
-
-  /* ── UPSELL ───────────────────────────────────────────────── */
-  .upsell-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
-  .upsell-card {
-    border: 1.5px solid var(--line);
-    border-radius: 10px; padding: 22px;
-    transition: border-color 0.2s, box-shadow 0.2s;
-  }
-  .upsell-card:hover { border-color: var(--accent-2); box-shadow: 0 4px 20px rgba(27,58,140,0.08); }
-  .upsell-price {
-    font-family: 'DM Sans', sans-serif; font-weight: 700;
-    font-size: 1.4rem; color: var(--accent); margin-bottom: 6px;
-  }
-  .upsell-title {
-    font-family: 'DM Sans', sans-serif; font-weight: 700;
-    font-size: 0.9rem; color: var(--ink); margin-bottom: 8px;
-  }
-  .upsell-desc { font-size: 0.83rem; color: var(--muted); line-height: 1.6; }
-
-  /* ── DISCLAIMER ───────────────────────────────────────────── */
-  .disclaimer {
-    background: var(--surface); border-top: 1px solid var(--line);
-    padding: 32px 0;
-  }
-  .disclaimer p { font-size: 0.78rem; color: var(--muted-2); line-height: 1.8; }
-
-  /* ── STICKY FOOTER ────────────────────────────────────────── */
-  .sticky-footer {
-    position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
-    background: var(--ink); color: var(--white);
-    padding: 14px 24px;
-    display: flex; align-items: center; justify-content: center; gap: 24px;
-    flex-wrap: wrap; gap: 12px;
-    transform: translateY(100%);
-    transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
-  }
-  .sticky-footer.visible { transform: translateY(0); }
-  .sticky-footer__text {
-    font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.9rem;
-  }
-  .sticky-footer__sub { font-size: 0.78rem; color: var(--muted-2); margin-top: 2px; }
-  .sticky-cta {
-    background: #FCD34D; color: var(--ink);
-    padding: 11px 24px; border-radius: 6px;
-    font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 0.88rem;
-    border: none; cursor: pointer; white-space: nowrap;
-    transition: background 0.2s;
-  }
-  .sticky-cta:hover { background: #FBE24A; }
-
-  /* ── MODAL ────────────────────────────────────────────────── */
-  .modal-overlay {
-    display: none; position: fixed; inset: 0; z-index: 300;
-    background: rgba(13,17,23,0.7); backdrop-filter: blur(6px);
-    align-items: center; justify-content: center; padding: 24px;
-  }
-  .modal-overlay.visible { display: flex; }
-  .modal {
-    background: var(--white); border-radius: 16px;
-    max-width: 460px; width: 100%;
-    overflow: hidden; animation: fadeUp 0.35s ease;
-  }
-  .modal__header {
-    background: var(--ink); color: var(--white);
-    padding: 28px 32px;
-  }
-  .modal__eyebrow {
-    font-size: 0.72rem; color: #9CA3AF; letter-spacing: 0.06em;
-    text-transform: uppercase; margin-bottom: 8px;
-  }
-  .modal__title {
-    font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 1.25rem;
-    margin-bottom: 6px; line-height: 1.3;
-  }
-  .modal__sub { font-size: 0.85rem; color: var(--muted-2); line-height: 1.55; }
-  .modal__price {
-    font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 1.9rem;
-    color: #FCD34D; margin-top: 14px;
-  }
-  .modal__body { padding: 28px 32px; }
-  .modal__feature {
-    display: flex; align-items: flex-start; gap: 10px;
-    margin-bottom: 13px; font-size: 0.88rem; color: var(--ink-3); line-height: 1.5;
-  }
-  .check {
-    width: 18px; height: 18px; border-radius: 50%;
-    background: var(--green-soft); color: var(--green);
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; font-size: 0.65rem; margin-top: 1px;
-  }
-  .modal__disclaimer {
-    background: var(--surface); border-radius: 8px; padding: 12px 16px;
-    margin: 20px 0; font-size: 0.78rem; color: var(--muted); line-height: 1.65;
-  }
-  .modal__cta {
-    display: block; width: 100%;
-    background: var(--accent); color: var(--white);
-    padding: 17px; border-radius: 8px;
-    font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 1rem;
-    border: none; cursor: pointer; text-align: center;
-    transition: background 0.2s;
-  }
-  .modal__cta:hover { background: var(--ink); }
-  .modal__security {
-    text-align: center; margin-top: 10px;
-    font-size: 0.75rem; color: var(--muted-2);
-  }
-  .modal__close {
-    display: block; text-align: center; margin-top: 10px;
-    font-size: 0.8rem; color: var(--muted); cursor: pointer;
-  }
-  .modal__close:hover { color: var(--ink); }
-
-  /* ── RESPONSIVE ───────────────────────────────────────────── */
-  @media (max-width: 600px) {
-    .hero { padding: 44px 0 36px; }
-    .section { padding: 52px 0; }
-    .report-row { grid-template-columns: 1fr 90px; }
-    .report-row .kans { display: none; }
-    .trust-bar { gap: 12px; }
-    .value-strip { gap: 10px 16px; }
-    .modal__header { padding: 24px 24px; }
-    .modal__body { padding: 24px 24px; }
-    .hero h1 { font-size: 1.7rem; }
-  }
-</style>
-</head>
-<body>
-
-<!-- ── HEADER ───────────────────────────────────────────────── -->
-<header class="site-header">
-  <div class="container--wide">
-    <div class="site-header__inner">
-      <div class="logo">
-        <span class="logo-dot"></span>
-        Incasso Check NL
-      </div>
-      <button class="header-cta" onclick="openModal()">Controleer mijn brief — €49</button>
-    </div>
-  </div>
-</header>
-
-<!-- ── HERO ─────────────────────────────────────────────────── -->
-<section class="hero">
-  <div class="container">
-
-    <div class="hero__eyebrow" style="justify-content:center;text-align:center;display:block;">
-      Wacht niet — aanmaningen hebben een betalingstermijn
-    </div>
-
-    <h1 style="text-align:center;">Betaal je deze aanmaning <em>wel terecht</em>?</h1>
-
-    <p class="hero__sub">Laat je brief controleren voordat je betaalt. Wij analyseren de vordering en sturen je binnen 24 uur een rapport én een bezwaarbrief per e-mail.</p>
-
-    <!-- Value strip -->
-    <div class="value-strip">
-      <span class="value-item"><span class="vi-check">✔</span> Analyse + bezwaarbrief binnen 24 uur</span>
-      <span class="value-item"><span class="vi-check">✔</span> Per e-mail — geen account nodig</span>
-      <span class="value-item"><span class="vi-check">✔</span> Eenmalig €49 · geen abonnement</span>
-      <span class="value-item"><span class="vi-check">✔</span> Document na verwerking verwijderd</span>
-    </div>
-
-    <!-- Upload zone -->
-    <div class="upload-section" id="upload-zone" onclick="openModal()">
-      <input type="file" id="file-input" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this)">
-      <div class="upload-icon">
-        <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#6B7A90" stroke-width="1.8">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="17 8 12 3 7 8"/>
-          <line x1="12" y1="3" x2="12" y2="15"/>
-        </svg>
-      </div>
-      <div class="upload-label">Upload je brief alvast — of ga direct naar betaling</div>
-      <div class="upload-hint">PDF, JPG of PNG · max. 10 MB · je betaalt pas in de volgende stap</div>
-    </div>
-
-    <!-- Intake confirm (shows after upload) -->
-    <div class="teaser" id="teaser">
-      <div class="teaser__header">
-        <div>
-          <div style="font-size:0.72rem;color:#9CA3AF;margin-bottom:4px;letter-spacing:0.05em;text-transform:uppercase;">Ontvangen</div>
-          <div class="teaser__company" id="teaser-company">Je brief is klaar voor analyse</div>
-        </div>
-        <div class="teaser__status-label">Gereed</div>
-      </div>
-      <div class="teaser__body">
-        <div class="teaser__found">Klaar. Dit is wat er nu gebeurt:</div>
-        <div class="teaser__sub">1. Upload je brief (€49) &nbsp;→&nbsp; 2. Wij analyseren op fouten &nbsp;→&nbsp; 3. Jij ontvangt rapport + bezwaarbrief vóór morgen 17:00.</div>
-        <div class="teaser__locked">
-          <div class="lock-icon">
-            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          </div>
-          <div class="teaser__locked-text">
-            <strong>Volledige analyse na betaling</strong>
-            Bezwaargronden, sterkte-indicator en bezwaarbrief — binnen 24 uur per e-mail.
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- CTA -->
-    <div class="cta-wrap">
-      <button class="cta-main" onclick="openModal()">
-        Check mijn brief — €49 en resultaat binnen 24 uur
-      </button>
-      <div class="cta-sub">Eenmalig · geen abonnement · 🔒 beveiligde betaling via iDEAL of creditcard</div>
-    </div>
-
-  </div>
-</section>
-
-<!-- ── HOW IT WORKS ──────────────────────────────────────────── -->
-<section class="section">
-  <div class="container">
-    <div class="section-label">Hoe het werkt</div>
-    <h2>In 3 stappen klaar</h2>
-    <div class="steps">
-      <div class="step">
-        <div class="step__num">01</div>
-        <div class="step__title">Betaal en lever aan</div>
-        <div class="step__desc">Na betaling ontvang je een bevestigingsmail met instructies om je brief veilig aan te leveren. Duurt minder dan 2 minuten.</div>
-      </div>
-      <div class="step">
-        <div class="step__num">02</div>
-        <div class="step__title">Wij analyseren</div>
-        <div class="step__desc">We controleren je brief op verjaring, onjuiste incassokosten, onterechte vorderingen en ontbrekende wettelijke vermeldingen.</div>
-      </div>
-      <div class="step">
-        <div class="step__num">03</div>
-        <div class="step__title">Resultaat per e-mail</div>
-        <div class="step__desc">Vóór morgen 17:00 ontvang je je analyse en een kant-en-klare bezwaarbrief per e-mail. Direct te gebruiken of te versturen.</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ── RAPPORT VOORBEELD ─────────────────────────────────────── -->
-<section class="section">
-  <div class="container">
-    <div class="section-label">Wat je ontvangt</div>
-    <h2>Voorbeeld rapport</h2>
-    <div class="report-preview">
-      <div class="report-preview__header">
-        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        Bezwaargronden analyse
-      </div>
-      <div class="report-row">
-        <div class="report-row__label">Vordering mogelijk verjaard</div>
-        <span class="badge badge--green"><span class="badge-dot"></span>Sterk</span>
-        <span class="kans">Hoog</span>
-      </div>
-      <div class="report-row">
-        <div class="report-row__label">Incassokosten te hoog (WIK)</div>
-        <span class="badge badge--amber"><span class="badge-dot"></span>Mogelijk</span>
-        <span class="kans">Middel</span>
-      </div>
-      <div class="report-row">
-        <div class="report-row__label">Abonnement aantoonbaar opgezegd</div>
-        <span class="badge badge--green"><span class="badge-dot"></span>Sterk</span>
-        <span class="kans">Hoog</span>
-      </div>
-      <div class="report-row">
-        <div class="report-row__label">Verkeerd bedrag</div>
-        <span class="badge badge--red"><span class="badge-dot"></span>Onwaarschijnlijk</span>
-        <span class="kans">Laag</span>
-      </div>
-      <div class="report-footer">
-        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
-        Inclusief bezwaarbrief en concrete vervolgstappen
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ── SOCIAL PROOF ──────────────────────────────────────────── -->
-<section class="section">
-  <div class="container">
-    <div class="section-label">Ervaringen</div>
-    <h2>Wat anderen zeggen</h2>
-    <div class="reviews">
-      <div class="review">
-        <div class="stars">★★★★★</div>
-        <div class="review__text">"Ik had al besloten te betalen. Bleek dat de vordering verjaard was. Heel blij dat ik dit eerst heb laten checken."</div>
-        <div class="review__author">Mark V. — Rotterdam</div>
-      </div>
-      <div class="review">
-        <div class="stars">★★★★★</div>
-        <div class="review__text">"Rapport was de volgende ochtend in mijn mailbox. Duidelijk, concreet en de bezwaarbrief kon ik meteen gebruiken."</div>
-        <div class="review__author">Fatima E. — Amsterdam</div>
-      </div>
-      <div class="review">
-        <div class="stars">★★★★★</div>
-        <div class="review__text">"De incassokosten waren te hoog berekend. Op basis van het rapport bezwaar gemaakt — en gewonnen."</div>
-        <div class="review__author">Thomas K. — Utrecht</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ── MID-PAGE CTA ──────────────────────────────────────────── -->
-<section style="padding:40px 0;border-bottom:1px solid var(--line);background:var(--surface);">
-  <div class="container" style="text-align:center;">
-    <p style="font-size:1rem;color:var(--ink-3);margin-bottom:16px;font-weight:500;">Betaal je liever niet als het niet hoeft? Laat je brief controleren.</p>
-    <button class="cta-main" style="max-width:480px;margin:0 auto;" onclick="openModal()">
-      Check mijn brief — €49 · resultaat binnen 24 uur
-    </button>
-  </div>
-</section>
-<section class="section">
-  <div class="container">
-    <div class="section-label">Extra opties</div>
-    <h2>Meer zekerheid nodig?</h2>
-    <div class="upsell-grid">
-      <div class="upsell-card">
-        <div class="upsell-price">+€9</div>
-        <div class="upsell-title">Wij versturen de brief</div>
-        <div class="upsell-desc">Aangetekend verzonden met bewijs van ontvangst. Jij hoeft niets te doen.</div>
-      </div>
-      <div class="upsell-card">
-        <div class="upsell-price">€79</div>
-        <div class="upsell-title">3 brieven bundel</div>
-        <div class="upsell-desc">Meerdere aanmaningen? Analyseer 3 brieven voor de prijs van 2. En bespaar bovendien €19.</div>
-      </div>
-      <div class="upsell-card">
-        <div class="upsell-price">€5/mnd</div>
-        <div class="upsell-title">Monitoring & opvolging</div>
-        <div class="upsell-desc">Wij houden bij of er reactie komt en adviseren je volgende stap. Stop wanneer je wilt.</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ── FAQ ──────────────────────────────────────────────────── -->
-<section class="section">
-  <div class="container">
-    <div class="section-label">Vragen</div>
-    <h2>Veelgestelde vragen</h2>
-    <div class="faq">
-      <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)">
-          Hoe lever ik mijn brief aan na betaling?
-          <svg class="faq-chevron" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-        </div>
-        <div class="faq-a">Na betaling upload je direct je brief op de bevestigingspagina. Dit duurt minder dan 2 minuten. Je analyse en bezwaarbrief ontvang je vóór morgen 17:00 per e-mail.</div>
-      </div>
-      <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)">
-          Wat als mijn vordering toch terecht is?
-          <svg class="faq-chevron" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-        </div>
-        <div class="faq-a">Dan krijg je alsnog een rapport met een duidelijke uitleg van de vordering, betalingsregelingopties en tips om verdere kosten te voorkomen. Je betaalt nooit voor een leeg rapport.</div>
-      </div>
-      <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)">
-          Is dit juridisch advies?
-          <svg class="faq-chevron" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-        </div>
-        <div class="faq-a">Nee. Dit is een informatieve analyse op basis van jouw brief. Wij geven geen juridisch advies. Bij complexe situaties of hoge bedragen raden wij aan een jurist of het Juridisch Loket (0900-8020) te raadplegen.</div>
-      </div>
-      <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)">
-          Wat gebeurt er met mijn document?
-          <svg class="faq-chevron" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-        </div>
-        <div class="faq-a">Je document wordt na de analyse direct en permanent verwijderd. Wij bewaren geen persoonlijke gegevens langer dan noodzakelijk voor de verwerking.</div>
-      </div>
-      <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)">
-          Schort een bezwaar mijn betaling op?
-          <svg class="faq-chevron" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-        </div>
-        <div class="faq-a">Nee, een bezwaar schort betaling niet automatisch op. Wij communiceren dit altijd duidelijk in het rapport zodat je een weloverwogen beslissing kunt nemen.</div>
-      </div>
-      <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)">
-          Welke brieven kan ik aanleveren?
-          <svg class="faq-chevron" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-        </div>
-        <div class="faq-a">Aanmaningen, incassobrieven, sommaties en brieven van deurwaarderskantoren. Zowel PDF als foto (JPG/PNG) worden ondersteund.</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ── DISCLAIMER ────────────────────────────────────────────── -->
-<footer class="disclaimer">
-  <div class="container">
-    <p>Incasso Check NL biedt informatieve analyses en genereert bezwaarbrieven. Wij geven geen juridisch advies. Een bezwaar schort betaling niet automatisch op. Bij afwijzing van een bezwaar kunnen kosten oplopen. Raadpleeg bij twijfel altijd een jurist of het Juridisch Loket via 0900-8020. Documenten worden na verwerking verwijderd. &copy; 2025 Incasso Check NL.</p>
-  </div>
-</footer>
-
-<!-- ── STICKY FOOTER ─────────────────────────────────────────── -->
-<div class="sticky-footer" id="sticky-footer">
-  <div>
-    <div class="sticky-footer__text">Twijfel je of je terecht betaalt?</div>
-    <div class="sticky-footer__sub">Resultaat binnen 24 uur · eenmalig €49</div>
-  </div>
-  <button class="sticky-cta" onclick="openModal()">Controleer mijn brief — €49 →</button>
-</div>
-
-<!-- ── MODAL ─────────────────────────────────────────────────── -->
-<div class="modal-overlay" id="modal" onclick="closeModalOutside(event)">
-  <div class="modal">
-    <div class="modal__header">
-      <div class="modal__eyebrow">Wat je krijgt</div>
-      <div class="modal__title">Analyse + bezwaarbrief binnen 24 uur</div>
-      <div class="modal__sub">Na betaling lever je je brief aan. Wij analyseren hem en sturen je het resultaat per e-mail.</div>
-      <div class="modal__price">€49 <span style="font-size:1rem;color:#9CA3AF;font-weight:400;">eenmalig · geen abonnement</span></div>
-    </div>
-    <div class="modal__body">
-      <div class="modal__feature">
-        <div class="check">✓</div>
-        <div>Volledige analyse op bezwaargronden (verjaring, kosten, onjuiste vordering)</div>
-      </div>
-      <div class="modal__feature">
-        <div class="check">✓</div>
-        <div>Sterkte-indicator: hoe sterk sta jij?</div>
-      </div>
-      <div class="modal__feature">
-        <div class="check">✓</div>
-        <div>Kant-en-klare bezwaarbrief — klaar om te gebruiken</div>
-      </div>
-      <div class="modal__feature">
-        <div class="check">✓</div>
-        <div>Duidelijke vervolgstappen in gewone taal</div>
-      </div>
-      <div class="modal__disclaimer">
-        ℹ️ Dit is een informatieve analyse, geen juridisch advies. Je ontvangt je resultaat binnen 24 uur na aanlevering van je brief.
-      </div>
-      <!-- VERVANG HREF MET JOUW STRIPE BETAALLINK -->
-   <a href="https://buy.stripe.com/test_00wfZh72x3ug2SG3zn7Re00" class="modal__cta">
-  Betaal €49 en ontvang je analyse →
-</a>
-      <div class="modal__security">🔒 Beveiligde betaling via Stripe · iDEAL beschikbaar</div>
-      <div class="modal__close" onclick="closeModal()">Annuleren</div>
-    </div>
-  </div>
-</div>
-
-<script>
-  // ── UPLOAD HANDLING ─────────────────────────────────────────
-  const uploadZone = document.getElementById('upload-zone');
-
-  uploadZone.addEventListener('dragover', e => {
-    e.preventDefault();
-    uploadZone.classList.add('drag-over');
-  });
-  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
-  uploadZone.addEventListener('drop', e => {
-    e.preventDefault();
-    uploadZone.classList.remove('drag-over');
-    const file = e.dataTransfer.files[0];
-    if (file) processFile(file);
-  });
-
-  function handleFile(input) {
-    if (input.files[0]) processFile(input.files[0]);
-  }
-
-  function processFile(file) {
-    document.getElementById('teaser-company').textContent = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ') || 'Je brief';
-
-    const teaser = document.getElementById('teaser');
-    teaser.classList.add('visible');
-
-    uploadZone.innerHTML = `
-      <div class="upload-icon" style="border-color:var(--green);">
-        <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="var(--green)" stroke-width="2">
-          <polyline points="20 6 9 17 4 12"/>
-        </svg>
-      </div>
-      <div class="upload-label" style="color:var(--green);">${file.name}</div>
-      <div class="upload-hint">Bestand geladen — klik hieronder om je analyse aan te vragen</div>
-    `;
-
-    setTimeout(() => teaser.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
-    setTimeout(() => openModal(), 800);
-  }
-
-  // ── STICKY FOOTER ───────────────────────────────────────────
-  const stickyFooter = document.getElementById('sticky-footer');
-
-  window.addEventListener('scroll', () => {
-    if (window.scrollY > 500) {
-      stickyFooter.classList.add('visible');
-    } else {
-      stickyFooter.classList.remove('visible');
+export default {
+  async fetch(request, env) {
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+        }
+      });
     }
-  });
 
-  // ── MODAL ───────────────────────────────────────────────────
-  function openModal() {
-    document.getElementById('modal').classList.add('visible');
-    document.body.style.overflow = 'hidden';
-  }
-  function closeModal() {
-    document.getElementById('modal').classList.remove('visible');
-    document.body.style.overflow = '';
-  }
-  function closeModalOutside(e) {
-    if (e.target === document.getElementById('modal')) closeModal();
-  }
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+    if (request.method !== 'POST') {
+      return new Response('Method not allowed', { status: 405 });
+    }
 
-  // ── FAQ ─────────────────────────────────────────────────────
-  function toggleFaq(el) {
-    const item = el.closest('.faq-item');
-    const isOpen = item.classList.contains('open');
-    document.querySelectorAll('.faq-item.open').forEach(i => i.classList.remove('open'));
-    if (!isOpen) item.classList.add('open');
-  }
-</script>
+    try {
+      const formData = await request.formData();
+      const file = formData.get('file');
+      const klantEmail = formData.get('email') || 'onbekend';
+      const klantNaam = formData.get('naam') || 'onbekend';
 
-</body>
-</html>
+      if (!file) {
+        return jsonResponse({ ok: false, error: 'Geen bestand ontvangen' }, 400);
+      }
+
+      const { base64, mediaType } = await fileToBase64(file);
+
+      // 1. TRIAGE
+      const triage = await runTriage(env, base64, mediaType);
+
+      // 2. ROUTING
+      let route = triage.recommended_route || 'HANDLE_WITH_HAIKU';
+
+      if (
+        triage.document_type === 'dagvaarding' ||
+        triage.document_type === 'deurwaardersbrief' ||
+        triage.legal_risk_flag === true
+      ) {
+        route = 'HUMAN_REVIEW';
+      } else if (
+        triage.confidence_score < 7 ||
+        triage.complexity_level === 'high' ||
+        (triage.amount_total && triage.amount_total > 2500)
+      ) {
+        route = 'ESCALATE_TO_SONNET';
+      }
+
+      // 3A. HUMAN REVIEW
+      if (route === 'HUMAN_REVIEW') {
+        await sendAdminEmail(env, {
+          naam: klantNaam,
+          email: klantEmail,
+          bestandsnaam: file.name,
+          base64,
+          route: 'HUMAN REVIEW VEREIST',
+          triage
+        });
+
+        await sendCustomerFallback(env, {
+          email: klantEmail,
+          naam: klantNaam,
+          scheduledAt: getVolgendedag16u()
+        });
+
+        return jsonResponse({ ok: true, route: 'HUMAN_REVIEW' });
+      }
+
+      // 3B. ANALYSE
+      const rapport = await generateAnalyse(env, {
+        route,
+        base64,
+        mediaType
+      });
+
+      const split = splitRapport(rapport);
+
+      const bezwaarRtf = maakRtfDocument(split.bezwaar);
+      const analyseRtf = maakAnalyseRtfMetTabel(split.analyse);
+
+      // simpele utf-8 -> base64 voor mail attachments
+      const bezwaarRtfB64 = btoa(unescape(encodeURIComponent(bezwaarRtf)));
+      const analyseRtfB64 = btoa(unescape(encodeURIComponent(analyseRtf)));
+
+      const routeLabel =
+        route === 'ESCALATE_TO_SONNET'
+          ? 'SONNET (complex)'
+          : 'HAIKU (standaard)';
+
+      await sendAdminEmail(env, {
+        naam: klantNaam,
+        email: klantEmail,
+        bestandsnaam: file.name,
+        base64,
+        route: routeLabel,
+        triage
+      });
+
+      await sendCustomerEmail(env, {
+        email: klantEmail,
+        naam: klantNaam,
+        scheduledAt: getVolgendedag16u(),
+        attachments: [
+          { filename: 'Incasso-Analyse.rtf', content: analyseRtfB64 },
+          { filename: 'Bezwaarschrift.rtf', content: bezwaarRtfB64 }
+        ]
+      });
+
+      return jsonResponse({ ok: true, route });
+    } catch (err) {
+      return jsonResponse({ ok: false, error: err.message }, 500);
+    }
+  }
+};
