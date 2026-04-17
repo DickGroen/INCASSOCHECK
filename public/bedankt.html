@@ -1,85 +1,590 @@
-import { callClaude } from './claude.js';
-import { fixMojibake } from './utils.js';
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bedankt voor je betaling — Incasso Check NL</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f4f6fb;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --primary: #1b3a8c;
+      --primary-hover: #122968;
+      --soft: #eef3ff;
+      --success: #15803d;
+      --success-soft: #ecfdf5;
+      --warn: #92400e;
+      --warn-soft: #fffbeb;
+      --warn-border: #fde68a;
+    }
 
-const ANALYSE_PROMPT = `Je bent een juridisch assistent gespecialiseerd in Nederlandse incassozaken. Analyseer de bijgevoegde incassobrief. TAALREGELS: gebruik alleen correct Nederlands. Schrijf eurotekens altijd als het symbool euro (niet als EUR). Schrijf kopie altijd als kopie. Gebruik nooit het woord aanmandement - gebruik altijd aanmaning of 14-dagenbrief. Gebruik nooit vreemde tekens of encoding-fouten. BELANGRIJK: gebruik alleen gewone tekst en markdown. Geen code blocks, geen ASCII-art, geen kaders, geen backticks.
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
-Geef het rapport in deze vaste structuur:
+    body {
+      font-family: "DM Sans", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 28px 16px 60px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
 
-## 1. SAMENVATTING
-(kostenoverzicht als markdown tabel met eurotekens, dan: Op basis van deze brief lijkt het mogelijk dat... met korte inschatting)
+    .wrap { max-width: 680px; margin: 0 auto; }
 
-## 2. BEZWAARGRONDEN
-(selecteer alleen de 2-4 sterkste punten, gebruik voorzichtige taal: mogelijk, lijkt, kan wijzen op)
+    /* ── TOP CONFIRMATION BAR ─── */
+    .confirm-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--success-soft);
+      border: 1px solid #bbf7d0;
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--success);
+    }
 
-## 3. STERKTE-INDICATOR
-(vetgedrukt: Sterk bezwaar / Mogelijk bezwaar / Weinig kans, dan korte onderbouwing)
+    .confirm-bar .checks {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
 
-## MOGELIJKE BESPARING
-(vetgedrukt totaalbedrag met euroteken, specificeer per post, vermeld herzien totaal)
+    .confirm-bar .checks span { font-weight: 500; font-size: 13px; }
 
-Zet daarna exact de tekst [BRIEFHOOFD_START] op een nieuwe regel.
+    /* ── MAIN CARD ─── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 32px 24px;
+      box-shadow: 0 8px 32px rgba(15,23,42,0.07);
+    }
 
-Schrijf dan een korte bezwaarbrief van maximaal 1 pagina.
-Begin DIRECT met:
-[Datum], [Woonplaats]
+    .card-header {
+      text-align: center;
+      margin-bottom: 28px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--line);
+    }
 
-Dan twee lege regels.
-Dan het adresblok van het incassobureau.
-Dan twee lege regels.
-Dan:
-Betreft: Bezwaarschrift - [referentienummer]
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--success-soft);
+      color: var(--success);
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
 
-Dan twee lege regels.
-Dan:
-Geachte heer / mevrouw,
+    .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--success);
+      animation: pulse 2s infinite;
+    }
 
-Dan een lege regel.
-Dan:
-Hierbij maak ik bezwaar tegen de incassovordering met kenmerk [referentienummer].
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.3); }
+    }
 
-Dan de 2-4 bezwaarpunten als korte bullets.
+    h1 {
+      font-size: clamp(1.6rem, 3.5vw, 2.2rem);
+      font-weight: 700;
+      line-height: 1.2;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
 
-Dan:
-Gezien bovenstaande verzoek ik u vriendelijk om een nadere toelichting, specificatie van de vordering en bewijs van de grondslag. Totdat dit is opgehelderd, beschouw ik de vordering als betwist.
+    .lead {
+      font-size: 16px;
+      color: var(--muted);
+    }
 
-Dan de afsluiting:
-In afwachting van uw reactie.
-Met vriendelijke groet,
+    /* ── TIMELINE ─── */
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin-bottom: 28px;
+    }
 
-[vier lege regels]
-[Uw naam]
-[Woonplaats], [datum]
+    .tl-item {
+      display: flex;
+      gap: 14px;
+      position: relative;
+    }
 
-Bijlagen:
-- Kopie van de ontvangen incassobrief d.d. [datum brief]
+    .tl-item:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      left: 15px;
+      top: 32px;
+      bottom: -8px;
+      width: 2px;
+      background: var(--line);
+    }
 
-Zet daarna exact de tekst [BRIEFHOOFD_EIND] op een nieuwe regel.
+    .tl-dot {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--soft);
+      border: 2px solid var(--primary);
+      color: var(--primary);
+      font-weight: 700;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
 
-Schrijf daarna een sectie:
-## TOELICHTING VOOR U
-met:
-- korte uitleg in simpele taal
-- volgende stap
-- en verplicht deze zin:
-Een bezwaar schort betaling niet automatisch op.
+    .tl-dot.done {
+      background: var(--success);
+      border-color: var(--success);
+      color: white;
+    }
 
-Adviseer bij twijfel een jurist.`;
+    .tl-body {
+      padding-bottom: 20px;
+      flex: 1;
+    }
 
-export async function generateAnalyse(env, { route, base64, mediaType }) {
-  const model =
-    route === 'ESCALATE_TO_SONNET'
-      ? 'claude-sonnet-4-6'
-      : 'claude-haiku-4-5-20251001';
+    .tl-body strong {
+      display: block;
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
 
-  const raw = await callClaude(env, {
-    model,
-    maxTokens: 4500,
-    base64,
-    mediaType,
-    prompt: ANALYSE_PROMPT
-  });
+    .tl-body span {
+      font-size: 13px;
+      color: var(--muted);
+    }
 
-  return fixMojibake(raw || 'Analyse niet beschikbaar');
-}
+    /* ── FORM ─── */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--line);
+      border-radius: 10px;
+      font-size: 15px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+      background: #fafbff;
+    }
+
+    .form-group input:focus { border-color: var(--primary); background: white; }
+
+    /* ── UPLOAD BOX ─── */
+    .upload-box {
+      border: 2px dashed #cbd5e1;
+      background: #f8faff;
+      border-radius: 12px;
+      padding: 28px 20px;
+      cursor: pointer;
+      transition: 0.2s ease;
+      display: block;
+      text-align: center;
+      margin-bottom: 4px;
+    }
+
+    .upload-box:hover, .upload-box.dragover {
+      border-color: var(--primary);
+      background: var(--soft);
+    }
+
+    .upload-icon {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .upload-title { font-weight: 700; font-size: 17px; margin-bottom: 4px; }
+    .upload-sub { font-size: 13px; color: var(--muted); }
+
+    input[type="file"] { display: none; }
+
+    .file-name {
+      display: none;
+      margin-top: 10px;
+      background: var(--success-soft);
+      color: var(--success);
+      border: 1px solid #bbf7d0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: left;
+    }
+
+    /* ── CTA ─── */
+    .cta {
+      display: block;
+      width: 100%;
+      margin-top: 14px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 16px 20px;
+      font-family: inherit;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    .cta:hover:not(:disabled) { background: var(--primary-hover); transform: translateY(-1px); }
+    .cta:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    /* ── STATUS ─── */
+    #upload-status {
+      display: none;
+      margin-top: 14px;
+      padding: 14px 16px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    /* ── DEADLINE URGENCY ─── */
+    .urgency {
+      background: var(--warn-soft);
+      border: 1px solid var(--warn-border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: var(--warn);
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ── NOTE ─── */
+    .note {
+      margin-top: 12px;
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    /* ── FALLBACK ─── */
+    .fallback {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--line);
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .email-addr {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+      margin-top: 4px;
+    }
+
+    @media (max-width: 600px) {
+      .card { padding: 24px 18px; }
+      h1 { font-size: 1.5rem; }
+    }
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 300;
+    background: rgba(13,17,23,0.7); backdrop-filter: blur(6px);
+    align-items: center; justify-content: center; padding: 24px;
+  }
+  .modal-overlay.visible { display: flex; }
+  .modal {
+    background: var(--white); border-radius: 16px;
+    max-width: 460px; width: 100%;
+    overflow: hidden; animation: fadeUp 0.35s ease;
+  }
+  .modal__header {
+    background: var(--ink); color: var(--white);
+    padding: 28px 32px;
+  }
+  .modal__eyebrow {
+    font-size: 0.72rem; color: #9CA3AF; letter-spacing: 0.06em;
+    text-transform: uppercase; margin-bottom: 8px;
+  }
+  .modal__title {
+    font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 1.25rem;
+    margin-bottom: 6px; line-height: 1.3;
+  }
+  .modal__sub { font-size: 0.85rem; color: var(--muted-2); line-height: 1.55; }
+  .modal__price {
+    font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 1.9rem;
+    color: #FCD34D; margin-top: 14px;
+  }
+  .modal__body { padding: 28px 32px; }
+  .modal__feature {
+    display: flex; align-items: flex-start; gap: 10px;
+    margin-bottom: 13px; font-size: 0.88rem; color: var(--ink-3); line-height: 1.5;
+  }
+  .check {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--green-soft); color: var(--green);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: 0.65rem; margin-top: 1px;
+  }
+  .modal__disclaimer {
+    background: var(--surface); border-radius: 8px; padding: 12px 16px;
+    margin: 20px 0; font-size: 0.78rem; color: var(--muted); line-height: 1.65;
+  }
+  .modal__cta {
+    display: block; width: 100%;
+    background: var(--accent); color: var(--white);
+    padding: 17px; border-radius: 8px;
+    font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 1rem;
+    border: none; cursor: pointer; text-align: center;
+    transition: background 0.2s;
+  }
+  .modal__cta:hover { background: var(--ink); }
+  .modal__security {
+    text-align: center; margin-top: 10px;
+    font-size: 0.75rem; color: var(--muted-2);
+  }
+  .modal__close {
+    display: block; text-align: center; margin-top: 10px;
+    font-size: 0.8rem; color: var(--muted); cursor: pointer;
+  }
+  .modal__close:hover { color: var(--ink); }
+  </style>
+</head>
+<body>
 
 
+  <div class="wrap">
+
+    <!-- Bevestigingsbalk -->
+    <div class="confirm-bar">
+      <span style="font-size:20px;">✓</span>
+      <div class="checks">
+        <span>✔ Betaling ontvangen</span>
+        <span>Upload je brief hieronder — wij starten direct</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="badge"><span class="dot"></span> Betaald</div>
+        <h1>Eén stap verwijderd van je analyse</h1>
+        <p class="lead">Upload je incassobrief. Je ontvangt je analyse en bezwaarbrief morgen vóór 17:00 per e-mail.</p>
+      </div>
+
+      <!-- Timeline -->
+      <div class="timeline">
+        <div class="tl-item">
+          <div class="tl-dot done">✓</div>
+          <div class="tl-body">
+            <strong>Betaling ontvangen</strong>
+            <span>Je bestelling is bevestigd.</span>
+          </div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot">2</div>
+          <div class="tl-body">
+            <strong>Upload je incassobrief</strong>
+            <span>PDF, JPG of PNG — max. 10 MB. Zorg dat de brief goed leesbaar is.</span>
+          </div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-dot">3</div>
+          <div class="tl-body">
+            <strong>Morgen vóór 17:00: analyse + bezwaarbrief per e-mail</strong>
+            <span>Kant-en-klaar om te gebruiken of te versturen.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Urgentie -->
+      <div class="urgency" id="urgency-bar">
+        ⏳ <span id="urgency-text">Upload je brief zo snel mogelijk — hoe eerder je aanlevert, hoe sneller je resultaat.</span>
+      </div>
+
+      <!-- Formulier -->
+      <div class="form-group">
+        <div>
+          <label for="input-naam">Naam</label>
+          <input type="text" id="input-naam" placeholder="Je volledige naam">
+        </div>
+        <div>
+          <label for="input-email">E-mailadres</label>
+          <input type="email" id="input-email" placeholder="Waar sturen we je rapport naartoe?">
+        </div>
+      </div>
+
+      <!-- Upload -->
+      <label for="file-upload" class="upload-box" id="upload-box">
+        <input type="file" id="file-upload" accept=".pdf,.jpg,.jpeg,.png">
+        <div class="upload-icon">📄</div>
+        <div class="upload-title">Klik om je brief te uploaden</div>
+        <div class="upload-sub">PDF, JPG of PNG — max. 10 MB</div>
+        <div class="file-name" id="file-name"></div>
+      </label>
+
+      <button class="cta" type="button" id="upload-btn" onclick="startUpload()" disabled>
+        Selecteer eerst je brief
+      </button>
+
+      <div id="upload-status"></div>
+
+      <p class="note">Hoe sneller je aanlevert, hoe sneller je resultaat krijgt.</p>
+
+      <!-- Fallback -->
+      <div class="fallback">
+        <strong>Lukt uploaden niet?</strong> Stuur je brief naar:
+        <div class="email-addr">info@incasso-check.nl</div>
+        <span>Vermeld je naam en ordernummer in je e-mail.</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const WORKER_URL = 'https://incassocheck-upload.dickgroen2.workers.dev';
+    const input = document.getElementById('file-upload');
+    const fileName = document.getElementById('file-name');
+    const uploadBox = document.getElementById('upload-box');
+    var selectedFile = null;
+
+    input.addEventListener('change', function() {
+      if (input.files && input.files[0]) {
+        selectedFile = input.files[0];
+        fileName.style.display = 'block';
+        fileName.textContent = 'Geselecteerd: ' + selectedFile.name;
+        var btn = document.getElementById('upload-btn');
+        btn.disabled = false;
+        btn.textContent = 'Uploaden';
+      }
+    });
+
+    uploadBox.addEventListener('dragover', function(e) { e.preventDefault(); uploadBox.classList.add('dragover'); });
+    uploadBox.addEventListener('dragleave', function() { uploadBox.classList.remove('dragover'); });
+    uploadBox.addEventListener('drop', function(e) {
+      e.preventDefault();
+      uploadBox.classList.remove('dragover');
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        selectedFile = e.dataTransfer.files[0];
+        fileName.style.display = 'block';
+        fileName.textContent = 'Geselecteerd: ' + selectedFile.name;
+        var btn = document.getElementById('upload-btn');
+        btn.disabled = false;
+        btn.textContent = 'Uploaden';
+      }
+    });
+
+    async function startUpload() {
+      const file = document.getElementById('file-upload').files[0] || selectedFile;
+      const naam = document.getElementById('input-naam').value.trim();
+      const email = document.getElementById('input-email').value.trim();
+      const btn = document.getElementById('upload-btn');
+
+      document.getElementById('upload-status').style.display = 'none';
+      if (!naam) { showStatus('Vul je naam in.', 'error'); return; }
+      if (!email || !email.includes('@')) { showStatus('Vul een geldig e-mailadres in.', 'error'); return; }
+      if (!file) { showStatus('Selecteer eerst je incassobrief.', 'error'); return; }
+      if (file.size > 10 * 1024 * 1024) { showStatus('Bestand is te groot. Max 10 MB.', 'error'); return; }
+
+      btn.disabled = true;
+      btn.textContent = 'Bezig met uploaden...';
+      document.getElementById('upload-status').style.display = 'none';
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('naam', naam);
+      formData.append('email', email);
+
+      try {
+        const res = await fetch(WORKER_URL, { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (data.ok) {
+          var bar = document.querySelector('.confirm-bar');
+          if (bar) bar.style.display = 'none';
+          const isHandmatig = data.route === 'HUMAN_REVIEW';
+          const regel2 = isHandmatig
+            ? '✔ Brief ontvangen — ons team beoordeelt je aanvraag handmatig'
+            : '✔ Brief ontvangen — analyse wordt gestart';
+          const tijdlijn = isHandmatig
+            ? '⏳ Uiterlijk morgen nemen wij contact met je op per e-mail'
+            : '⏳ Morgen vóór 17:00: analyse + bezwaarbrief in je inbox';
+          // Toon bevestiging
+          document.querySelector('.card').innerHTML = `
+            <div style="text-align:center; padding:20px 0;">
+              <div style="font-size:52px; margin-bottom:16px;">✅</div>
+              <h2 style="font-size:1.6rem; font-weight:700; margin-bottom:10px;">Ontvangen!</h2>
+              <div style="background:#ecfdf5; border:1px solid #bbf7d0; border-radius:12px; padding:18px 20px; margin:20px 0; text-align:left;">
+                <div style="font-size:14px; font-weight:600; color:#15803d; margin-bottom:10px;">Wat er nu gebeurt:</div>
+                <div style="font-size:14px; color:#374151; line-height:1.8;">
+                  ✔ Betaling ontvangen<br>
+                  ${regel2}<br>
+                  ${tijdlijn}
+                </div>
+              </div>
+              <a href="https://incasso-check.nl" style="display:inline-block; margin-top:8px; color:#1b3a8c; font-size:14px; font-weight:600;">← Terug naar incasso-check.nl</a>
+            </div>
+          `;
+        } else {
+          showStatus('Er ging iets mis. Stuur je brief naar info@incasso-check.nl', 'error');
+          btn.disabled = false;
+          btn.textContent = 'Uploaden';
+        }
+      } catch (err) {
+        showStatus('Verbinding mislukt. Stuur je brief naar info@incasso-check.nl', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Uploaden';
+      }
+    }
+
+    function showStatus(msg, type) {
+      const el = document.getElementById('upload-status');
+      el.style.display = 'block';
+      el.innerHTML = msg;
+      el.style.background = type === 'success' ? '#ecfdf5' : '#fef2f2';
+      el.style.color = type === 'success' ? '#15803d' : '#dc2626';
+      el.style.border = type === 'success' ? '1px solid #bbf7d0' : '1px solid #fecaca';
+      el.style.padding = '14px 16px';
+      el.style.borderRadius = '10px';
+      el.style.fontSize = '14px';
+      el.style.fontWeight = '600';
+      el.style.marginTop = '14px';
+    }
+  </script>
+</body>
+</html>
