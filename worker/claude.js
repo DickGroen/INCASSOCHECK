@@ -1,7 +1,7 @@
-export async function callClaude(env, { model, base64, mediaType, prompt, maxTokens = 2000 }) {
-  // Fix 5: abort na 25s zodat de worker niet abrupt time-out bij een hangende Claude-response
+export async function callClaude(env, { model, base64, mediaType, prompt, maxTokens = 2000, timeoutMs = 25000 }) {
+  // Fix 1: timeoutMs is nu configureerbaar — Sonnet-aanroepen kunnen meer tijd krijgen
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 25000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   let res;
   try {
@@ -10,7 +10,7 @@ export async function callClaude(env, { model, base64, mediaType, prompt, maxTok
       method: 'POST',
       headers: {
         'x-api-key': env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
+        'anthropic-version': '2024-10-22', // Fix 4: update van 2023-06-01 naar huidige stabiele versie
         'content-type': 'application/json',
       },
       body: JSON.stringify({
@@ -41,14 +41,26 @@ export async function callClaude(env, { model, base64, mediaType, prompt, maxTok
   } catch (err) {
     clearTimeout(timeout);
     if (err.name === 'AbortError') {
-      throw new Error('Claude API time-out na 25 seconden');
+      throw new Error(`Claude API time-out na ${timeoutMs / 1000} seconden`);
     }
     throw err;
   }
 
   clearTimeout(timeout);
 
-  const data = await res.json();
+  // Fix 3: retry bij transiënte overbelasting (429 / 529) met 2s delay
+  if (res.status === 429 || res.status === 529) {
+    await new Promise(r => setTimeout(r, 2000));
+    throw new Error(`Claude API tijdelijk niet beschikbaar (${res.status}) — probeer opnieuw`);
+  }
+
+  // Fix 2: vang ongeldige JSON op — bij proxy-fouten retourneert de API soms HTML
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error(`Claude API: ongeldige JSON response (HTTP ${res.status})`);
+  }
 
   if (!res.ok) {
     throw new Error(`Claude API fout: ${JSON.stringify(data)}`);
