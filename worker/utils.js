@@ -135,7 +135,7 @@ function rtfHeader() {
   return '{\\rtf1\\ansi\\ansicpg1252\\deff0'
     + '{\\fonttbl{\\f0\\fswiss\\fcharset0 Arial;}}'
     + '{\\colortbl;\\red27\\green58\\blue140;\\red235\\green242\\blue255;}'
-    + '\\f0\\fs24\\sa160\\sl300\\slmult1 ';
+    + '\\f0\\fs24\\ql\\sa160\\sl300\\slmult1 ';
 }
 
 // Zet een markdown-tabel om naar een RTF-tabel
@@ -233,7 +233,7 @@ export function maakRtfDocument(tekst) {
     // Koptekst ## / ### etc.
     if (/^#{1,4} /.test(line)) {
       const kop = line.replace(/^#{1,4} /, '');
-      rtf += '\\pard\\sb300{\\b\\cf1\\fs28 ' + kop + '}\\par\\pard ';
+      rtf += '\\pard\\ql\\sb300{\\b\\cf1\\fs28 ' + kop + '}\\par\\pard\\ql ';
       i++;
       continue;
     }
@@ -245,11 +245,15 @@ export function maakRtfDocument(tekst) {
       continue;
     }
 
-    // Bullet: - of • — witruimte boven/onder, vet label vóór de eerste ':'
-    if (/^[-•]\s/.test(line)) {
-      const inhoud = line.replace(/^[-•]\s/, '');
+    // Bullet: - of • — \ql links uitlijnen, fi-400/li400 inspringing, sb/sa interlinie
+    // Strip bestaand RTF-bullet prefix om dubbele bullets te voorkomen
+    if (/^[-•]\s/.test(line) || /\\bullet\\tab/.test(line)) {
+      let inhoud = line
+        .replace(/^\\pard[^\\]*\\fi[^\\]*\\li[^\\]*\\[a-z]+[^\\]*\\bullet\\tab /, '')
+        .replace(/^\\pard[^\\]*\\bullet\\tab /, '')
+        .replace(/^[-•]\s/, '');
       let bulletInhoud;
-      if (inhoud.includes(': ')) {
+      if (inhoud.includes(': ') && !inhoud.startsWith('{\\b')) {
         const kolonIdx = inhoud.indexOf(': ');
         const label = inhoud.substring(0, kolonIdx);
         const rest  = inhoud.substring(kolonIdx + 2);
@@ -257,7 +261,7 @@ export function maakRtfDocument(tekst) {
       } else {
         bulletInhoud = inhoud;
       }
-      rtf += '\\pard\\fi-380\\li380\\sb120\\sa120\\bullet\\tab ' + bulletInhoud + '\\par\\pard ';
+      rtf += '\\pard\\ql\\fi-400\\li400\\sb140\\sa140\\bullet\\tab ' + bulletInhoud + '\\par\\pard\\ql ';
       i++;
       continue;
     }
@@ -276,8 +280,8 @@ export function maakRtfDocument(tekst) {
       continue;
     }
 
-    // Gewone alinea
-    rtf += line + '\\par ';
+    // Gewone alinea — \ql zorgt voor links uitlijnen
+    rtf += '\\pard\\ql\\sa120 ' + line + '\\par ';
     i++;
   }
 
