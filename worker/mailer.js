@@ -6,7 +6,7 @@ export async function sendAdminEmail(env, { naam, email, bestandsnaam, base64, r
     `<p><strong>Confidence:</strong> ${triage.confidence_score || 'onbekend'}/10</p>` +
     `<p><strong>Juridisch risico:</strong> ${triage.legal_risk_flag ? 'JA' : 'nee'}</p>`;
 
-  await fetch('https://api.resend.com/emails', {
+  const adminRes = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
       'Authorization': 'Bearer ' + env.RESEND_API_KEY,
@@ -24,10 +24,14 @@ export async function sendAdminEmail(env, { naam, email, bestandsnaam, base64, r
       attachments: [{ filename: bestandsnaam, content: base64 }]
     })
   });
+  if (!adminRes.ok) {
+    const err = await adminRes.text();
+    throw new Error(`Resend fout (admin): ${err}`);
+  }
 }
 
 export async function sendCustomerFallback(env, { email, naam, scheduledAt }) {
-  await fetch('https://api.resend.com/emails', {
+  const fallbackRes = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
       'Authorization': 'Bearer ' + env.RESEND_API_KEY,
@@ -54,10 +58,14 @@ export async function sendCustomerFallback(env, { email, naam, scheduledAt }) {
         '</div></div>'
     })
   });
+  if (!fallbackRes.ok) {
+    const err = await fallbackRes.text();
+    throw new Error(`Resend fout (fallback): ${err}`);
+  }
 }
 
 export async function sendCustomerEmail(env, { email, naam, scheduledAt, attachments }) {
-  await fetch('https://api.resend.com/emails', {
+  const customerRes = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
       'Authorization': 'Bearer ' + env.RESEND_API_KEY,
@@ -72,6 +80,10 @@ export async function sendCustomerEmail(env, { email, naam, scheduledAt, attachm
       attachments
     })
   });
+  if (!customerRes.ok) {
+    const err = await customerRes.text();
+    throw new Error(`Resend fout (klant): ${err}`);
+  }
 }
 
 function makeIntroEmail(naam) {
@@ -100,4 +112,3 @@ function makeIntroEmail(naam) {
     + '</div>'
     + '</div>';
 }
-
