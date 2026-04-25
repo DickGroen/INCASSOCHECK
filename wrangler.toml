@@ -1,20 +1,10 @@
-name = "incassocheck-worker"
+name = "incassocheck"
 main = "worker/index.js"
 compatibility_date = "2024-12-01"
 
-compatibility_flags = ["nodejs_compat"]
+[[kv_namespaces]]
+binding = "INCASSO_QUEUE"
+id = "JOUW_KV_NAMESPACE_ID"
 
-workers_dev = true
-minify = true
-
-# Secrets (instellen via Cloudflare dashboard of CLI):
-#   wrangler secret put ANTHROPIC_API_KEY
-#   wrangler secret put RESEND_API_KEY
-
-[observability]
-enabled = true
-
-[[rules]]
-type = "Text"
-globs = ["prompts/**/*.txt"]
-fallthrough = true
+[triggers]
+crons = ["0 13 * * 1-5"]
