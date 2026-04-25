@@ -35,6 +35,37 @@
     .wik-table td { padding: 10px 14px; border-bottom: 1px solid var(--line); color: var(--ink-3); }
     .wik-table tr:nth-child(even) { background: var(--surface); }
     .wik-highlight { color: var(--red); font-weight: 700; }
+    .email-capture {
+      background: var(--accent);
+      border-radius: 14px;
+      padding: 20px 24px;
+      margin: 24px 0 8px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    .email-capture__title { font-weight: 700; color: var(--white); font-size: 0.95rem; margin-bottom: 3px; }
+    .email-capture__sub { font-size: 0.82rem; color: rgba(255,255,255,0.75); line-height: 1.5; }
+    .email-capture__text { flex: 1; min-width: 200px; }
+    .email-capture__form { display: flex; gap: 8px; flex-wrap: wrap; flex: 1; min-width: 240px; }
+    .email-capture__input {
+      flex: 1; min-width: 180px; border: none; border-radius: 8px;
+      padding: 11px 14px; font-size: 0.9rem; color: var(--ink);
+      background: var(--white); outline: none; font-family: inherit;
+    }
+    .email-capture__btn {
+      background: var(--green); color: var(--white); border: none;
+      border-radius: 8px; padding: 11px 18px; font-size: 0.88rem;
+      font-weight: 700; cursor: pointer; font-family: inherit; white-space: nowrap;
+      transition: background 0.2s;
+    }
+    .email-capture__btn:hover { background: #15803d; }
+    .email-capture__status { width: 100%; font-size: 0.82rem; color: rgba(255,255,255,0.85); margin-top: 4px; }
+    @media (max-width: 600px) {
+      .email-capture { flex-direction: column; gap: 14px; }
+      .email-capture__form { width: 100%; }
+    }
   </style>
 </head>
 
@@ -74,6 +105,19 @@
       <span class="value-item"><span class="vi-check">✔</span> Check op verjaring en te hoge incassokosten</span>
       <span class="value-item"><span class="vi-check">✔</span> Eenmalig €29 · geen abonnement</span>
       <span class="value-item"><span class="vi-check">✔</span> Resultaat binnen 24 uur per e-mail</span>
+    </div>
+
+    <!-- EMAIL CAPTURE -->
+    <div class="email-capture" id="email-capture">
+      <div class="email-capture__text">
+        <div class="email-capture__title">📋 Ontvang de gratis checklist</div>
+        <div class="email-capture__sub">5 punten waarop je jouw incassobrief zelf kunt checken — direct in je inbox.</div>
+      </div>
+      <div class="email-capture__form">
+        <input type="email" id="capture-email" placeholder="jouw@email.nl" class="email-capture__input" autocomplete="email">
+        <button class="email-capture__btn" onclick="submitEmailCapture()">Stuur checklist →</button>
+      </div>
+      <div class="email-capture__status" id="capture-status"></div>
     </div>
 
     <!-- TWEE OPTIES -->
@@ -505,6 +549,45 @@ async function startGratisUpload() {
     status.textContent = 'Fout: ' + err.message;
     btn.disabled = false;
     btn.textContent = 'Gratis inschatting aanvragen';
+  }
+}
+
+async function submitEmailCapture() {
+  const emailInput = document.getElementById('capture-email');
+  const btn = document.querySelector('.email-capture__btn');
+  const status = document.getElementById('capture-status');
+  const email = emailInput.value.trim();
+
+  if (!email || !email.includes('@') || !email.includes('.')) {
+    status.textContent = 'Vul een geldig e-mailadres in.';
+    emailInput.style.borderColor = 'var(--red)';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Even geduld...';
+
+  try {
+    const res = await fetch(`${WORKER_URL}/checklist`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      status.textContent = '✓ Checklist onderweg — check jouw inbox.';
+      emailInput.value = '';
+      btn.textContent = 'Verstuurd ✓';
+      // Pre-fill gratis form with same email
+      const gratisEmail = document.getElementById('gratis-email');
+      if (gratisEmail) gratisEmail.value = email;
+    } else {
+      throw new Error(data.error || 'Fout');
+    }
+  } catch (err) {
+    status.textContent = 'Fout: ' + err.message;
+    btn.disabled = false;
+    btn.textContent = 'Stuur checklist →';
   }
 }
 </script>
