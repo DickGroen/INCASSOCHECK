@@ -490,6 +490,65 @@ export default {
       }
     }
 
+    // ── /checklist (email capture) ──
+    if (request.method === "POST" && url.pathname === "/checklist") {
+      try {
+        const body = await request.json();
+        const email = String(body.email || "").trim();
+        if (!email || !email.includes("@") || !email.includes(".")) {
+          return jsonResponse({ ok: false, error: "Ongeldig e-mailadres" }, 400);
+        }
+
+        const checklistHtml = `
+          <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1f2937;">
+            <h2 style="color:#1d3a6e;">Jouw gratis checklist: 5 punten om jouw incassobrief zelf te checken</h2>
+            <p>Gebruik deze checklist voordat je betaalt — of laat IncassoCheck het voor je doen.</p>
+            <ol style="line-height:2.2;padding-left:20px;">
+              <li><strong>Is de vordering verjaard?</strong> Hoofdregel: 5 jaar (art. 3:307 BW). Consumentenkoop: 2 jaar. Kijk naar de datum van de eerste factuur of het contract.</li>
+              <li><strong>Is de 14-dagenbrief aanwezig?</strong> Voordat incassokosten mogen worden doorberekend, moet jij een aanmaning hebben ontvangen met een betalingstermijn van 14 dagen. Ontbreekt die? Dan zijn de incassokosten mogelijk onterecht.</li>
+              <li><strong>Kloppen de incassokosten?</strong> Maximum is 15% over de eerste €2.500, 10% over €2.500–5.000, 5% over €5.000–10.000. Minimum €40, maximum €6.775. Rekent het bureau meer? Dan is dat aanvechtbaar.</li>
+              <li><strong>Is de grondslag duidelijk?</strong> De brief moet duidelijk vermelden waarvoor je betaalt. Geen factuur of contract bijgevoegd? Vraag dit schriftelijk op voordat je betaalt.</li>
+              <li><strong>Is de vordering overgedragen?</strong> Soms kopen incassobureaus vorderingen op. Controleer of de overdracht (cessie) correct aan jou is meegedeeld. Zo niet, hoef je mogelijk niet aan hen te betalen.</li>
+            </ol>
+            <p style="background:#f0fdf4;border-left:4px solid #22c55e;padding:12px 16px;border-radius:4px;font-size:0.9rem;">
+              💡 Wil je zeker weten hoe jouw brief scoort op al deze punten? Laat IncassoCheck het voor je analyseren — inclusief kant-en-klaar bezwaarschrift voor €29.
+            </p>
+            <a href="https://incasso-check.nl" style="display:inline-block;background:#1d3a6e;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;margin:16px 0;">
+              Laat mijn brief analyseren →
+            </a>
+            <p style="color:#6b7280;font-size:0.82rem;margin-top:24px;">IncassoCheck · informatief, geen juridisch advies.</p>
+          </div>
+        `;
+
+        await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            from: "IncassoCheck <noreply@incasso-check.nl>",
+            to: [email],
+            subject: "Jouw gratis checklist: 5 punten om jouw incassobrief te checken",
+            html: checklistHtml
+          })
+        });
+
+        // Notify admin
+        await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            from: "IncassoCheck <noreply@incasso-check.nl>",
+            to: [env.ADMIN_EMAIL],
+            subject: `Nieuwe checklist lead: ${email}`,
+            html: `<p>Nieuw e-mailadres via checklist capture: <strong>${escapeHtml(email)}</strong></p>`
+          })
+        });
+
+        return jsonResponse({ ok: true });
+      } catch (err) {
+        return jsonResponse({ ok: false, error: err.message }, 500);
+      }
+    }
+
     return new Response("Not found", { status: 404 });
   },
 
