@@ -3,309 +3,511 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Betaling geslaagd — Brief uploaden | IncassoCheck</title>
+  <title>Incassobrief ontvangen? Laat hem checken | IncassoCheck</title>
+  <meta name="description" content="Upload jouw incassobrief en ontvang binnen 24 uur een volledige analyse plus kant-en-klaar bezwaarschrift. Eenmalig €29 — betaal niet te snel.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
   <style>
-    .thankyou-wrap { max-width: 760px; margin: 0 auto; padding: 56px 24px 140px; }
-    .thankyou-card { background: var(--white); border: 1.5px solid var(--line); border-radius: 16px; padding: 36px 28px; box-shadow: 0 10px 24px rgba(17,24,39,0.06); }
-    .thankyou-badge { display: inline-flex; align-items: center; gap: 8px; background: var(--green-soft); color: var(--green); border-radius: 100px; padding: 6px 14px; font-size: 0.78rem; font-weight: 700; margin-bottom: 18px; }
-    .thankyou-dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; }
-    .progress-bar { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--muted); margin-bottom: 18px; }
-    .progress-bar__step--done { color: var(--green); font-weight: 700; }
-    .progress-bar__step--current { color: var(--accent); font-weight: 700; }
-    .progress-bar__divider { width: 24px; height: 1px; background: var(--line); }
-    .thankyou-title { font-size: clamp(1.7rem, 4vw, 2.3rem); margin-bottom: 12px; color: var(--ink); line-height: 1.25; }
-    .thankyou-sub { font-size: 1rem; color: var(--ink-3); line-height: 1.75; margin-bottom: 28px; }
-    .thankyou-sub strong { color: var(--ink); background: var(--amber-soft); padding: 2px 6px; border-radius: 4px; }
-    .thankyou-steps { display: grid; gap: 14px; margin-bottom: 30px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px 18px 8px; }
-    .thankyou-step { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
-    .thankyou-step-num { width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 0.82rem; font-weight: 700; }
-    .thankyou-step-title { font-weight: 700; color: var(--ink); font-size: 0.95rem; margin-bottom: 2px; }
-    .thankyou-step-desc { color: var(--muted); font-size: 0.86rem; line-height: 1.7; }
-    .form-grid { display: grid; gap: 16px; margin-bottom: 18px; }
-    .field { text-align: left; }
-    .field label { display: block; font-size: 0.84rem; font-weight: 700; color: var(--ink); margin-bottom: 8px; }
-    .field input { width: 100%; border: 1.5px solid var(--line); border-radius: 10px; padding: 14px 15px; font-size: 0.95rem; color: var(--ink); background: var(--white); outline: none; transition: border-color 0.2s; box-sizing: border-box; }
-    .field input:focus { border-color: var(--accent-2); box-shadow: 0 0 0 4px rgba(46,95,172,0.08); }
-    .field input.invalid { border-color: var(--red); }
-    .field-error { display: none; color: var(--red); font-size: 0.78rem; margin-top: 6px; font-weight: 600; }
-    .field-error.show { display: block; }
-    .upload-panel { background: var(--surface); border: 1.5px dashed var(--line); border-radius: 12px; padding: 28px 22px; text-align: center; margin-bottom: 12px; cursor: pointer; display: block; transition: border-color 0.2s, background 0.2s; }
-    .upload-panel:hover, .upload-panel.drag-over { border-color: var(--accent-2); background: var(--accent-soft); }
-    .upload-panel__icon { width: 52px; height: 52px; margin: 0 auto 14px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--white); display: flex; align-items: center; justify-content: center; }
-    .upload-panel__title { font-weight: 700; font-size: 1rem; color: var(--ink); margin-bottom: 6px; }
-    .upload-panel__sub { font-size: 0.84rem; color: var(--muted); }
-    .upload-security { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.76rem; color: var(--muted); margin-bottom: 18px; }
-    #real-file-input { display: none; }
-    .selected-file { display: none; background: var(--green-soft); color: var(--green); border: 1px solid #b7e4c7; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; }
-    .selected-file.show { display: flex; align-items: center; gap: 12px; }
-    .selected-file__check { width: 24px; height: 24px; flex-shrink: 0; background: var(--green); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; }
-    .selected-file__name { font-weight: 700; font-size: 0.9rem; }
-    .selected-file__meta { font-size: 0.78rem; opacity: 0.8; margin-top: 2px; }
-    .selected-file__remove { margin-left: auto; background: none; border: none; color: var(--green); cursor: pointer; font-size: 0.82rem; font-weight: 700; text-decoration: underline; }
-    .cta-main { width: 100%; padding: 16px; font-size: 1rem; font-weight: 700; }
-    .cta-sub-note { text-align: center; font-size: 0.78rem; color: var(--muted); margin-top: 10px; }
-    .status-box { display: none; border-radius: 10px; padding: 13px 15px; font-size: 0.86rem; font-weight: 600; margin-top: 14px; line-height: 1.6; }
-    .status-box.success { display: block; background: var(--green-soft); color: var(--green); border: 1px solid #b7e4c7; }
-    .status-box.error { display: block; background: var(--red-soft); color: var(--red); border: 1px solid #f5b7b1; }
-    .status-box.info { display: block; background: var(--amber-soft); color: var(--amber); border: 1px solid #f6d58a; }
-    .fallback-box { margin-top: 28px; padding: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
-    .fallback-box strong { display: block; margin-bottom: 6px; color: var(--ink); font-size: 0.9rem; }
-    .fallback-box p { color: var(--muted); font-size: 0.83rem; line-height: 1.7; margin: 0; }
-    .fallback-email { font-weight: 700; font-size: 0.98rem; color: var(--accent); margin-top: 6px; display: inline-block; }
-    .locked-screen { max-width: 700px; margin: 0 auto; padding: 80px 24px; text-align: center; }
-    .locked-screen h2 { margin-bottom: 10px; }
-    .locked-screen p { color: var(--muted); line-height: 1.7; }
-    .locked-screen a { display: inline-block; margin-top: 16px; color: var(--accent); font-weight: 700; }
-    .success-screen { text-align: center; padding: 20px 0; }
-    .success-screen__icon { width: 64px; height: 64px; margin: 0 auto 18px; border-radius: 50%; background: var(--green-soft); color: var(--green); display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 700; }
-    .success-screen h2 { color: var(--ink); margin-bottom: 10px; }
-    .success-screen p { color: var(--ink-3); line-height: 1.7; max-width: 480px; margin: 0 auto 18px; }
-    .success-screen__meta { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; font-size: 0.85rem; color: var(--muted); max-width: 480px; margin: 0 auto; }
-    .success-screen__meta strong { color: var(--ink); }
-    @media (max-width: 600px) { .thankyou-wrap { padding: 32px 16px 120px; } .thankyou-card { padding: 24px 18px; } }
+    .forwhom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 8px; }
+    @media (max-width: 680px) { .forwhom-grid { grid-template-columns: 1fr; } }
+    .forwhom-card { border-radius: 14px; padding: 24px; }
+    .forwhom-card--yes { background: var(--green-soft); border: 1.5px solid #bbf7d0; }
+    .forwhom-card--no  { background: var(--surface); border: 1.5px solid var(--line); }
+    .forwhom-title { font-weight: 700; font-size: 1rem; margin-bottom: 14px; }
+    .forwhom-title--yes { color: var(--green); }
+    .forwhom-title--no  { color: var(--muted); }
+    .forwhom-list { list-style: none; display: grid; gap: 8px; }
+    .forwhom-list li { font-size: 0.88rem; color: var(--ink-3); display: flex; gap: 8px; line-height: 1.5; }
+    .forwhom-icon--yes { color: var(--green); font-weight: 700; flex-shrink: 0; }
+    .forwhom-icon--no  { color: var(--muted); flex-shrink: 0; }
+    .trust-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 8px; }
+    @media (max-width: 680px) { .trust-grid { grid-template-columns: 1fr; } }
+    .trust-item { background: var(--white); border: 1px solid var(--line); border-radius: 12px; padding: 20px 16px; }
+    .trust-item__label { font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); margin-bottom: 6px; }
+    .trust-item__text { font-size: 0.88rem; color: var(--ink-3); line-height: 1.65; }
+    .expectation-box { background: var(--surface); border: 1.5px solid var(--line); border-radius: 14px; padding: 28px; margin-top: 8px; }
+    .expectation-row { display: flex; gap: 12px; margin-bottom: 14px; font-size: 0.9rem; color: var(--ink-3); line-height: 1.6; }
+    .expectation-icon { flex-shrink: 0; font-weight: 700; color: var(--green); }
+    .wik-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-top: 16px; }
+    .wik-table th { padding: 10px 14px; text-align: left; font-weight: 700; border-bottom: 2px solid var(--line); color: var(--ink); }
+    .wik-table td { padding: 10px 14px; border-bottom: 1px solid var(--line); color: var(--ink-3); }
+    .wik-table tr:nth-child(even) { background: var(--surface); }
+    .wik-highlight { color: var(--red); font-weight: 700; }
   </style>
 </head>
+
 <body>
 
-  <div id="locked-screen" class="locked-screen" style="display:none;">
-    <h2>Geen toegang tot deze pagina</h2>
-    <p>Deze pagina is alleen bereikbaar na een succesvolle betaling. Ga terug naar de startpagina.</p>
-    <a href="/">Terug naar startpagina</a>
+<!-- HEADER -->
+<header class="site-header">
+  <div class="container--wide">
+    <div class="site-header__inner">
+      <div class="logo">
+        <span class="logo-dot"></span>
+        IncassoCheck
+      </div>
+      <button class="header-cta" onclick="openModal()">Brief checken — €29</button>
+    </div>
   </div>
+</header>
 
-  <div id="thankyou-app" class="thankyou-wrap" style="display:none;">
-    <div class="thankyou-card">
+<!-- HERO -->
+<section class="hero">
+  <div class="container">
 
-      <div class="thankyou-badge">
-        <span class="thankyou-dot"></span>
-        Betaling geslaagd
+    <div class="hero__eyebrow" style="justify-content:center;text-align:center;display:block;margin-left:auto;margin-right:auto;">
+      Niet meteen betalen — laat de vordering eerst checken
+    </div>
+
+    <h1 style="text-align:center;">Incassobrief ontvangen?<br>Veel mensen betalen te veel of onterecht.</h1>
+
+    <p class="hero__sub" style="text-align:center;margin-left:auto;margin-right:auto;">
+      Incassobureaus rekenen vaak te hoge kosten of sturen brieven zonder geldige grondslag.
+      Upload jouw brief en ontvang binnen 24 uur een volledige analyse plus kant-en-klaar bezwaarschrift per e-mail.
+      Eenmalig €29 — geen abonnement, geen succesfee.
+    </p>
+
+    <div class="value-strip">
+      <span class="value-item"><span class="vi-check">✔</span> Analyse + bezwaarschrift binnen 24 uur</span>
+      <span class="value-item"><span class="vi-check">✔</span> Check op verjaring en te hoge incassokosten</span>
+      <span class="value-item"><span class="vi-check">✔</span> Eenmalig €29 · geen abonnement</span>
+      <span class="value-item"><span class="vi-check">✔</span> Document wordt na verwerking verwijderd</span>
+    </div>
+
+    <!-- TWEE OPTIES -->
+    <div class="optie-grid">
+
+      <!-- BETAALD -->
+      <div class="optie-card optie-card--betaald">
+        <div class="optie-badge optie-badge--betaald">Aanbevolen</div>
+        <h3 class="optie-title">Volledige Analyse</h3>
+        <p class="optie-desc">Ontvang de volledige analyse met een kant-en-klaar bezwaarschrift — direct bruikbaar, binnen 24 uur per e-mail.</p>
+        <ul class="optie-list">
+          <li>✓ Check op verjaring (art. 3:307 BW)</li>
+          <li>✓ Check op te hoge incassokosten (WIK-tarief)</li>
+          <li>✓ Check op ontbrekende 14-dagenbrief</li>
+          <li>✓ Kant-en-klaar bezwaarschrift op naam</li>
+          <li>✓ Concrete vervolgstappen (Consumentenbond, rechter)</li>
+          <li>✓ Resultaat binnen 24 uur</li>
+        </ul>
+        <div style="background:var(--accent-soft);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:0.82rem;color:var(--accent);margin-bottom:16px;line-height:1.55;">
+          Jij verstuurt het bezwaarschrift zelf. Dat kost je 5 minuten — maar kan je honderden euro's besparen.
+        </div>
+        <div class="optie-price">€29 <span>eenmalig · geen abonnement</span></div>
+        <a href="https://buy.stripe.com/JOUW_STRIPE_LINK" class="optie-btn optie-btn--betaald">
+          Nu betalen en analyse starten →
+        </a>
+        <p class="optie-security">🔒 Veilig betalen via Stripe · iDEAL beschikbaar</p>
+        <p class="optie-guarantee">Niet tevreden? Geld terug — zonder discussie.</p>
       </div>
 
-      <div class="progress-bar">
-        <span class="progress-bar__step progress-bar__step--done">✓ Betaald</span>
-        <span class="progress-bar__divider"></span>
-        <span class="progress-bar__step progress-bar__step--current">Stap 2: Brief uploaden</span>
+      <!-- GRATIS -->
+      <div class="optie-card optie-card--gratis">
+        <div class="optie-badge optie-badge--gratis">Gratis</div>
+        <h3 class="optie-title">Eerste Inschatting</h3>
+        <p class="optie-desc">Nog niet zeker of jouw brief aanvechtbaar is? Upload hem en ontvang gratis een eerste inschatting per e-mail.</p>
+        <ul class="optie-list">
+          <li>✓ Afzender en type herkend</li>
+          <li>✓ Eerste risico-inschatting</li>
+          <li>✓ Gevorderd bedrag geanalyseerd</li>
+          <li>✓ Uiterlijk volgende werkdag voor 16:00</li>
+        </ul>
+        <div class="optie-price">Gratis</div>
+        <input type="file" id="gratis-file-input" accept=".pdf,.jpg,.jpeg,.png"
+               onchange="handleGratisFileSelect(this)" style="display:none;">
+        <label class="upload-section upload-section--small" id="gratis-upload-zone" for="gratis-file-input">
+          <div class="upload-label">Brief uploaden</div>
+          <div class="upload-hint">PDF, JPG of PNG · max. 8 MB</div>
+        </label>
+        <div id="gratis-contact-fields" style="display:none;gap:8px;flex-direction:column;">
+          <input type="text" id="gratis-name" placeholder="Jouw naam" class="optie-input">
+          <input type="email" id="gratis-email" placeholder="Jouw e-mailadres" class="optie-input">
+        </div>
+        <button class="optie-btn optie-btn--gratis" id="gratis-btn" onclick="startGratisUpload()" disabled>
+          Gratis inschatting aanvragen
+        </button>
+        <div class="optie-status" id="gratis-status"></div>
       </div>
 
-      <h1 class="thankyou-title">Laatste stap — upload nu jouw incassobrief</h1>
+    </div>
 
-      <p class="thankyou-sub">
-        Na de upload starten wij direct met de analyse. Je ontvangt jouw volledige analyse
-        en het kant-en-klare bezwaarschrift <strong>binnen 24 uur</strong> per e-mail.
-      </p>
+    <!-- UPLOAD (verborgen teaser flow) -->
+    <input type="file" id="file-input" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this)" style="display:none;">
+    <label class="upload-section" id="upload-zone" for="file-input" style="display:none;">
+      <div class="upload-label">Brief uploaden</div>
+      <div class="upload-hint">PDF, JPG of PNG</div>
+    </label>
 
-      <div class="thankyou-steps">
-        <div class="thankyou-step">
-          <div class="thankyou-step-num">1</div>
-          <div>
-            <div class="thankyou-step-title">Brief uploaden</div>
-            <div class="thankyou-step-desc">Incassobrief, aanmaning of deurwaardersbrief — PDF, JPG of PNG, zo volledig mogelijk en goed leesbaar.</div>
-          </div>
-        </div>
-        <div class="thankyou-step">
-          <div class="thankyou-step-num">2</div>
-          <div>
-            <div class="thankyou-step-title">Wij analyseren jouw brief</div>
-            <div class="thankyou-step-desc">We controleren op verjaring, te hoge incassokosten (WIK), ontbrekende 14-dagenbrief en andere aanvechtpunten.</div>
-          </div>
-        </div>
-        <div class="thankyou-step">
-          <div class="thankyou-step-num">3</div>
-          <div>
-            <div class="thankyou-step-title">Resultaat per e-mail</div>
-            <div class="thankyou-step-desc">Je ontvangt jouw volledige analyse en het kant-en-klare bezwaarschrift <strong>binnen 24 uur</strong>.</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="form-grid">
-        <div class="field">
-          <label for="customer-name">Jouw naam</label>
-          <input type="text" id="customer-name" placeholder="Voor- en achternaam" autocomplete="name">
-          <div class="field-error" id="name-error">Vul jouw naam in.</div>
-        </div>
-        <div class="field">
-          <label for="customer-email">E-mailadres voor het resultaat</label>
-          <input type="email" id="customer-email" placeholder="naam@voorbeeld.nl" autocomplete="email">
-          <div class="field-error" id="email-error">Vul een geldig e-mailadres in.</div>
-        </div>
-      </div>
-
-      <label class="upload-panel" id="upload-panel" for="real-file-input">
-        <input type="file" id="real-file-input" accept=".pdf,.jpg,.jpeg,.png">
-        <div class="upload-panel__icon">
-          <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#6B7A90" stroke-width="1.8">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="17 8 12 3 7 8"/>
-            <line x1="12" y1="3" x2="12" y2="15"/>
-          </svg>
-        </div>
-        <div class="upload-panel__title">Klikken of bestand hierheen slepen</div>
-        <div class="upload-panel__sub">PDF, JPG of PNG · max. 8 MB</div>
-      </label>
-
-      <div class="upload-security">🔒 Beveiligde SSL-verbinding · Document wordt na analyse verwijderd</div>
-
-      <div class="selected-file" id="selected-file">
-        <div class="selected-file__check">✓</div>
+    <!-- TEASER -->
+    <div class="teaser" id="teaser">
+      <div class="teaser__header">
         <div>
-          <div class="selected-file__name" id="selected-file-name"></div>
-          <div class="selected-file__meta" id="selected-file-meta"></div>
+          <div style="font-size:0.72rem;color:#9CA3AF;margin-bottom:4px;letter-spacing:0.05em;text-transform:uppercase;">Herkend</div>
+          <div class="teaser__company" id="teaser-company">Jouw brief is klaar voor analyse</div>
         </div>
-        <button type="button" class="selected-file__remove" id="remove-file">verwijderen</button>
+        <div class="teaser__status-label">Klaar</div>
+      </div>
+      <div class="teaser__body">
+        <div class="teaser__found" id="teaser-found">Eerste bevinding:</div>
+        <div class="teaser__sub" id="teaser-sub">Jouw brief is herkend. Klik hieronder om jouw volledige analyse aan te vragen.</div>
+        <div class="teaser__locked">
+          <div class="lock-icon">
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <div class="teaser__locked-text" id="teaser-locked-text">
+            <strong>Volledige analyse na betaling</strong>
+            Aanvechtpunten, inschatting en kant-en-klaar bezwaarschrift — binnen 24 uur per e-mail.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cta-wrap">
+      <button class="cta-main" onclick="openModal()">
+        Brief checken — €29 · Resultaat binnen 24 uur
+      </button>
+      <div class="cta-sub">Eenmalige betaling · geen abonnement · 🔒 Veilig via Stripe · iDEAL</div>
+    </div>
+
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="section">
+  <div class="container">
+    <div class="section-label">Zo werkt het</div>
+    <h2>In 3 stappen geregeld</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step__num">01</div>
+        <div class="step__title">Betalen en uploaden</div>
+        <div class="step__desc">Na betaling upload je jouw incassobrief, aanmaning of deurwaardersbrief. Duurt minder dan 2 minuten. PDF, JPG of PNG.</div>
+      </div>
+      <div class="step">
+        <div class="step__num">02</div>
+        <div class="step__title">Wij analyseren</div>
+        <div class="step__desc">We controleren op verjaring, te hoge incassokosten, ontbrekende 14-dagenbrief, onduidelijke grondslag en andere aanvechtpunten.</div>
+      </div>
+      <div class="step">
+        <div class="step__num">03</div>
+        <div class="step__title">Resultaat per e-mail</div>
+        <div class="step__desc">Binnen 24 uur ontvang je jouw analyse én een kant-en-klaar bezwaarschrift per e-mail. Direct versturen naar het incassobureau.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- VOOR WIE -->
+<section class="section section--alt">
+  <div class="container">
+    <div class="section-label">Voor wie is dit?</div>
+    <h2>Eerlijk: dit past niet voor iedereen</h2>
+    <div class="forwhom-grid">
+      <div class="forwhom-card forwhom-card--yes">
+        <div class="forwhom-title forwhom-title--yes">Goed geschikt als...</div>
+        <ul class="forwhom-list">
+          <li><span class="forwhom-icon--yes">✓</span> Je een incassobrief, aanmaning of deurwaardersbrief hebt ontvangen</li>
+          <li><span class="forwhom-icon--yes">✓</span> Je twijfelt of de vordering klopt of niet verjaard is</li>
+          <li><span class="forwhom-icon--yes">✓</span> Je denkt dat de incassokosten te hoog zijn</li>
+          <li><span class="forwhom-icon--yes">✓</span> Je bereid bent het bezwaarschrift zelf te versturen</li>
+          <li><span class="forwhom-icon--yes">✓</span> Je liever €29 betaalt dan een juridisch bureau in te schakelen</li>
+        </ul>
+      </div>
+      <div class="forwhom-card forwhom-card--no">
+        <div class="forwhom-title forwhom-title--no">Minder geschikt als...</div>
+        <ul class="forwhom-list">
+          <li><span class="forwhom-icon--no">—</span> Je al een dagvaarding hebt ontvangen (dan een jurist raadplegen)</li>
+          <li><span class="forwhom-icon--no">—</span> Het om een erkende schuld gaat die je zeker niet betwist</li>
+          <li><span class="forwhom-icon--no">—</span> Je juridische vertegenwoordiging nodig hebt voor de rechter</li>
+          <li><span class="forwhom-icon--no">—</span> Het bedrag boven de €10.000 ligt (dan advocaat inschakelen)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WIK TABEL -->
+<section class="section">
+  <div class="container">
+    <div class="section-label">Wet Incassokosten</div>
+    <h2>Wist je dat incassokosten wettelijk begrensd zijn?</h2>
+    <p style="color:var(--ink-3);line-height:1.7;margin-bottom:8px;">
+      De Wet Incassokosten (WIK) stelt maximumtarieven voor buitengerechtelijke incassokosten.
+      Veel bureaus rekenen meer dan wettelijk is toegestaan. Wij controleren dit automatisch.
+    </p>
+    <div style="overflow-x:auto;">
+      <table class="wik-table">
+        <thead>
+          <tr>
+            <th>Hoofdsom</th>
+            <th>Max. incassokosten</th>
+            <th>Percentage</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>€0 – €2.500</td><td>15% (min. €40)</td><td>15%</td></tr>
+          <tr><td>€2.500 – €5.000</td><td>€375 + 10% over meerdere</td><td>10%</td></tr>
+          <tr><td>€5.000 – €10.000</td><td>€625 + 5% over meerdere</td><td>5%</td></tr>
+          <tr><td>> €10.000</td><td>€875 + 1% over meerdere (max. €6.775)</td><td>1%</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:0.82rem;color:var(--muted);margin-top:10px;">Bron: Besluit vergoeding voor buitengerechtelijke incassokosten (Stb. 2012, 141). Tarieven gelden voor consumenten.</p>
+  </div>
+</section>
+
+<!-- VERTROUWEN -->
+<section class="section section--alt">
+  <div class="container">
+    <div class="section-label">Hoe wij werken</div>
+    <h2>Op basis van Nederlands recht</h2>
+    <div class="trust-grid">
+      <div class="trust-item">
+        <div class="trust-item__label">Juridische grondslag</div>
+        <div class="trust-item__text">Onze analyse is gebaseerd op art. 6:96 BW (incassokosten), art. 3:307-309 BW (verjaring) en de Wet Incassokosten. Direct geldend Nederlands recht.</div>
+      </div>
+      <div class="trust-item">
+        <div class="trust-item__label">Wat wij controleren</div>
+        <div class="trust-item__text">Verjaring, WIK-tarieven, 14-dagenbrief, grondslag van de vordering, cessie en overdracht, dubbele incassering en ontbrekende wettelijke vermeldingen.</div>
+      </div>
+      <div class="trust-item">
+        <div class="trust-item__label">Wat wij niet zijn</div>
+        <div class="trust-item__text">Wij verlenen geen juridisch advies en treden niet op als juridisch vertegenwoordiger. Bij complexe zaken of dagvaardingen raden wij een jurist of de Consumentenbond aan.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- EERLIJK GEZEGD -->
+<section class="section">
+  <div class="container">
+    <div class="section-label">Eerlijk gezegd</div>
+    <h2>Wat je moet weten — vóór je betaalt</h2>
+    <div class="expectation-box">
+      <div class="expectation-row">
+        <span class="expectation-icon">✓</span>
+        <span>Je ontvangt een kant-en-klaar bezwaarschrift dat je per post of e-mail verstuurt naar het incassobureau. Dat kost je 5 minuten.</span>
+      </div>
+      <div class="expectation-row">
+        <span class="expectation-icon">✓</span>
+        <span>Een bezwaarschrift zet de betalingsverplichting niet automatisch opzij. Wij communiceren dit altijd duidelijk in de analyse.</span>
+      </div>
+      <div class="expectation-row">
+        <span class="expectation-icon">✓</span>
+        <span>Als jouw vordering niet aanvechtbaar blijkt, ontvang je toch een volledig rapport met uitleg en alternatieve vervolgstappen. Geen leeg rapport.</span>
+      </div>
+      <div class="expectation-row">
+        <span class="expectation-icon">✓</span>
+        <span>Bij afwijzing van het bezwaar geven we concrete vervolgstappen: Consumentenbond, Kifid, kantonrechter.</span>
+      </div>
+      <div class="expectation-row" style="margin-bottom:0;">
+        <span class="expectation-icon">✓</span>
+        <span>IncassoCheck is voor mensen die bereid zijn het bezwaarschrift zelf te versturen — en daarvoor mogelijk honderden euro's besparen.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CIJFERS -->
+<section class="section section--alt">
+  <div class="container">
+    <div class="section-label">De feiten</div>
+    <h2>Weet wat jouw rechten zijn</h2>
+    <div class="proof-grid">
+      <div class="proof-item">
+        <div class="proof-num">5 jaar</div>
+        <div class="proof-label">Verjaringstermijn voor de meeste vorderingen (art. 3:307 BW)</div>
+      </div>
+      <div class="proof-item">
+        <div class="proof-num">14 dagen</div>
+        <div class="proof-label">Wettelijk vereiste termijn in de aanmaningsbrief voor incassokosten</div>
+      </div>
+      <div class="proof-item">
+        <div class="proof-num">€40</div>
+        <div class="proof-label">Minimum incassokosten — maar ook een maximum per WIK-tarief</div>
+      </div>
+      <div class="proof-item">
+        <div class="proof-num">24 uur</div>
+        <div class="proof-label">Analyse + bezwaarschrift in jouw inbox</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="section">
+  <div class="container">
+    <div class="section-label">Veelgestelde vragen</div>
+    <h2>Alles wat je wil weten</h2>
+    <div class="faq-list">
+
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">
+          Welke brieven kan ik uploaden?
+          <svg class="faq-chevron" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="faq-a">Incassobrieven, aanmaningen, betalingsvorderingen en brieven van incassobureaus, deurwaarders of advocatenkantoren. Zowel PDF als foto (JPG/PNG) worden ondersteund.</div>
       </div>
 
-      <button class="cta-main" id="submit-btn" type="button" disabled>
-        Kies eerst een bestand
-      </button>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">
+          Zet een bezwaarschrift de betaling automatisch op hold?
+          <svg class="faq-chevron" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="faq-a">Nee. Een bezwaarschrift zet de betalingsverplichting niet automatisch opzij. Wij communiceren dit altijd duidelijk in het rapport, zodat jij een weloverwogen beslissing kunt maken.</div>
+      </div>
 
-      <div class="cta-sub-note">Na de upload starten wij direct — resultaat binnen 24 uur in jouw inbox.</div>
-      <div class="status-box" id="status-box"></div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">
+          Wat als de vordering toch terecht blijkt?
+          <svg class="faq-chevron" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="faq-a">Je ontvangt altijd een volledig rapport met een heldere uitleg, informatie over betalingsregelingen en tips om verdere kosten te voorkomen. Je betaalt nooit voor een leeg rapport.</div>
+      </div>
 
-      <div class="fallback-box">
-        <strong>Upload lukt niet?</strong>
-        <p>Stuur jouw brief direct per e-mail naar ons — we verwerken het even snel. Vermeld jouw naam en het e-mailadres waarmee je hebt betaald.</p>
-        <a href="mailto:info@incasso-check.nl" class="fallback-email">info@incasso-check.nl</a>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">
+          Hoe hoog mogen incassokosten maximaal zijn?
+          <svg class="faq-chevron" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="faq-a">De Wet Incassokosten stelt maximumtarieven: 15% over de eerste €2.500, 10% over €2.500-5.000 en 5% over €5.000-10.000, met een minimum van €40 en een maximum van €6.775. Daarboven is vereist dat er een correcte 14-dagenbrief is verstuurd.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">
+          Wanneer is een vordering verjaard?
+          <svg class="faq-chevron" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="faq-a">De hoofdregel is 5 jaar (art. 3:307 BW). Voor consumentenkoop geldt 2 jaar (art. 7:28 BW). De verjaringstermijn kan worden gestuit door een brief of erkenning van de schuld. Wij controleren automatisch of verjaring van toepassing kan zijn.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">
+          Is dit juridisch advies?
+          <svg class="faq-chevron" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="faq-a">Nee. Dit is een informatieve analyse op basis van jouw document. Wij verlenen geen juridisch advies. Bij complexe situaties, dagvaardingen of hoge bedragen raden wij een jurist of de Consumentenbond aan.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">
+          Wat gebeurt er met mijn document?
+          <svg class="faq-chevron" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="faq-a">Jouw document wordt na de analyse direct en permanent verwijderd. Wij slaan geen persoonsgegevens op langer dan noodzakelijk voor de verwerking.</div>
       </div>
 
     </div>
   </div>
+</section>
 
-  <script>
-    const SUBMIT_URL = 'https://incassocheck.dickgroen2.workers.dev/submit';
+<!-- FOOTER -->
+<footer class="disclaimer">
+  <div class="container">
+    <p>IncassoCheck biedt informatieve analyses en stelt conceptbezwaarschriften op op basis van Nederlands civiel recht. Wij verlenen geen juridisch advies. Een bezwaarschrift zet de betalingsverplichting niet automatisch opzij. Bij afwijzing kunnen verdere stappen noodzakelijk zijn. Raadpleeg bij twijfel een jurist of de Consumentenbond. Documenten worden na verwerking verwijderd. &copy; 2025 IncassoCheck.</p>
+  </div>
+</footer>
 
-    const lockedScreen = document.getElementById('locked-screen');
-    const thankyouApp = document.getElementById('thankyou-app');
-    const uploadPanel = document.getElementById('upload-panel');
-    const fileInput = document.getElementById('real-file-input');
-    const selectedFileBox = document.getElementById('selected-file');
-    const selectedFileName = document.getElementById('selected-file-name');
-    const selectedFileMeta = document.getElementById('selected-file-meta');
-    const removeFileBtn = document.getElementById('remove-file');
-    const submitBtn = document.getElementById('submit-btn');
-    const statusBox = document.getElementById('status-box');
-    const nameInput = document.getElementById('customer-name');
-    const emailInput = document.getElementById('customer-email');
-    const nameError = document.getElementById('name-error');
-    const emailError = document.getElementById('email-error');
-    let selectedFile = null;
+<!-- STICKY FOOTER -->
+<div class="sticky-footer" id="sticky-footer">
+  <div>
+    <div class="sticky-footer__text">Incassobrief ontvangen?</div>
+    <div class="sticky-footer__sub">Resultaat binnen 24 uur · eenmalig €29</div>
+  </div>
+  <button class="sticky-cta" onclick="openModal()">Brief checken — €29 →</button>
+</div>
 
-    validateSession();
+<!-- MODAL -->
+<div class="modal-overlay" id="modal" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <div class="modal__header">
+      <div class="modal__eyebrow">Wat je ontvangt</div>
+      <div class="modal__title">Analyse + bezwaarschrift binnen 24 uur</div>
+      <div class="modal__sub">Na betaling upload je jouw brief. Wij analyseren en sturen jou het resultaat binnen 24 uur per e-mail.</div>
+      <div class="modal__price">€29 <span style="font-size:1rem;color:#9CA3AF;font-weight:400;">eenmalig · geen abonnement</span></div>
+    </div>
+    <div class="modal__body">
+      <div class="modal__feature"><div class="check">✓</div><div>Check op verjaring, te hoge incassokosten en ontbrekende 14-dagenbrief</div></div>
+      <div class="modal__feature"><div class="check">✓</div><div>Volledige analyse van alle aanvechtpunten</div></div>
+      <div class="modal__feature"><div class="check">✓</div><div>Kant-en-klaar bezwaarschrift — direct versturen</div></div>
+      <div class="modal__feature"><div class="check">✓</div><div>Concrete vervolgstappen bij afwijzing</div></div>
+      <div class="modal__disclaimer">ℹ️ Dit is een informatieve analyse, geen juridisch advies. Een bezwaarschrift zet de betaling niet automatisch opzij.</div>
+      <p id="modal-dynamic-copy" style="margin-bottom:16px;color:#6b7a90;font-size:0.9rem;">
+        Wij hebben al eerste aanwijzingen herkend. De volledige beoordeling volgt na betaling.
+      </p>
+      <a href="https://buy.stripe.com/JOUW_STRIPE_LINK" class="modal__cta">
+        €29 betalen en analyse ontvangen →
+      </a>
+      <div class="modal__security">🔒 Veilig betalen via Stripe · iDEAL beschikbaar</div>
+      <div class="modal__close" onclick="closeModal()">Annuleren</div>
+    </div>
+  </div>
+</div>
 
-    function validateSession() {
-      const params = new URLSearchParams(window.location.search);
-      const sessionId = params.get('session_id');
-      if (sessionId && (sessionId.startsWith('cs_live_') || sessionId.startsWith('cs_test_'))) {
-        thankyouApp.style.display = 'block';
-        const emailFromStripe = params.get('email');
-        if (emailFromStripe) emailInput.value = emailFromStripe;
-      } else {
-        lockedScreen.style.display = 'block';
-      }
+<script src="app.js"></script>
+<script>
+const WORKER_URL = 'https://incassocheck.dickgroen2.workers.dev';
+let gratisFile = null;
+
+function handleGratisFileSelect(input) {
+  if (!input.files || !input.files[0]) return;
+  gratisFile = input.files[0];
+  const zone = document.getElementById('gratis-upload-zone');
+  zone.innerHTML = `<div class="upload-label" style="color:var(--green);">✓ ${escapeHtmlLocal(gratisFile.name)}</div><div class="upload-hint">Bestand geselecteerd</div>`;
+  document.getElementById('gratis-contact-fields').style.display = 'flex';
+  checkGratisReady();
+}
+
+function escapeHtmlLocal(str) {
+  return String(str || '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+}
+
+function checkGratisReady() {
+  const name = document.getElementById('gratis-name').value.trim();
+  const email = document.getElementById('gratis-email').value.trim();
+  document.getElementById('gratis-btn').disabled = !(name && email && email.includes('@') && gratisFile);
+}
+
+document.getElementById('gratis-name').addEventListener('input', checkGratisReady);
+document.getElementById('gratis-email').addEventListener('input', checkGratisReady);
+
+async function startGratisUpload() {
+  const name = document.getElementById('gratis-name').value.trim();
+  const email = document.getElementById('gratis-email').value.trim();
+  const btn = document.getElementById('gratis-btn');
+  const status = document.getElementById('gratis-status');
+  if (!gratisFile) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Wordt verstuurd...';
+  status.className = 'optie-status optie-status--info';
+  status.textContent = 'Jouw brief wordt geanalyseerd...';
+
+  const formData = new FormData();
+  formData.append('file', gratisFile);
+  formData.append('name', name);
+  formData.append('email', email);
+
+  try {
+    const res = await fetch(`${WORKER_URL}/analyze-free`, { method: 'POST', body: formData });
+    const data = await res.json();
+    if (data.ok) {
+      status.className = 'optie-status optie-status--success';
+      status.textContent = '✓ Je ontvangt jouw inschatting uiterlijk de volgende werkdag voor 16:00 per e-mail.';
+      btn.textContent = 'Verstuurd ✓';
+    } else {
+      throw new Error(data.error || 'Fout');
     }
+  } catch (err) {
+    status.className = 'optie-status optie-status--error';
+    status.textContent = 'Fout: ' + err.message;
+    btn.disabled = false;
+    btn.textContent = 'Gratis inschatting aanvragen';
+  }
+}
+</script>
 
-    function showStatus(message, type) {
-      statusBox.className = 'status-box ' + type;
-      statusBox.innerHTML = message;
-    }
-
-    function formatFileSize(bytes) {
-      if (bytes < 1024) return bytes + ' B';
-      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-    }
-
-    function updateSelectedFile(file) {
-      if (!file) return;
-      if (file.size > 8 * 1024 * 1024) { showStatus('Het bestand is te groot. Maximaal 8 MB toegestaan.', 'error'); return; }
-      selectedFile = file;
-      selectedFileBox.classList.add('show');
-      selectedFileName.textContent = file.name;
-      selectedFileMeta.textContent = formatFileSize(file.size) + ' · klaar voor upload';
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Nu uploaden en analyse starten';
-      statusBox.className = 'status-box';
-    }
-
-    function clearFile() {
-      selectedFile = null; fileInput.value = '';
-      selectedFileBox.classList.remove('show');
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Kies eerst een bestand';
-    }
-
-    removeFileBtn.addEventListener('click', e => { e.preventDefault(); clearFile(); });
-    fileInput.addEventListener('change', () => { if (fileInput.files && fileInput.files[0]) updateSelectedFile(fileInput.files[0]); });
-    uploadPanel.addEventListener('dragover', e => { e.preventDefault(); uploadPanel.classList.add('drag-over'); });
-    uploadPanel.addEventListener('dragleave', () => uploadPanel.classList.remove('drag-over'));
-    uploadPanel.addEventListener('drop', e => {
-      e.preventDefault(); uploadPanel.classList.remove('drag-over');
-      if (e.dataTransfer.files && e.dataTransfer.files[0]) { fileInput.files = e.dataTransfer.files; updateSelectedFile(e.dataTransfer.files[0]); }
-    });
-
-    nameInput.addEventListener('blur', () => {
-      if (!nameInput.value.trim()) { nameInput.classList.add('invalid'); nameError.classList.add('show'); }
-      else { nameInput.classList.remove('invalid'); nameError.classList.remove('show'); }
-    });
-    emailInput.addEventListener('blur', () => {
-      const val = emailInput.value.trim();
-      if (!val || !val.includes('@') || !val.includes('.')) { emailInput.classList.add('invalid'); emailError.classList.add('show'); }
-      else { emailInput.classList.remove('invalid'); emailError.classList.remove('show'); }
-    });
-
-    submitBtn.addEventListener('click', startUpload);
-
-    async function startUpload() {
-      const name = nameInput.value.trim();
-      const email = emailInput.value.trim();
-      const params = new URLSearchParams(window.location.search);
-      const sessionId = params.get('session_id');
-      const file = fileInput.files[0] || selectedFile;
-
-      let valid = true;
-      if (!name) { nameInput.classList.add('invalid'); nameError.classList.add('show'); valid = false; }
-      if (!email || !email.includes('@') || !email.includes('.')) { emailInput.classList.add('invalid'); emailError.classList.add('show'); valid = false; }
-      if (!file) { showStatus('Kies eerst een bestand.', 'error'); valid = false; }
-      if (!valid) return;
-
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Upload bezig...';
-      showStatus('Jouw brief wordt veilig geüpload. Even geduld...', 'info');
-
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('name', name);
-      formData.append('email', email);
-      formData.append('session_id', sessionId || '');
-
-      try {
-        const res = await fetch(SUBMIT_URL, { method: 'POST', body: formData });
-        const data = await res.json();
-        if (data.ok) {
-          document.querySelector('.thankyou-card').innerHTML = `
-            <div class="success-screen">
-              <div class="success-screen__icon">✓</div>
-              <h2>Upload geslaagd!</h2>
-              <p>Jouw brief is veilig bij ons aangekomen. We starten nu met de analyse.</p>
-              <div class="success-screen__meta">
-                Je ontvangt jouw volledige analyse en het kant-en-klare bezwaarschrift
-                <strong>binnen 24 uur</strong> op <strong>${email}</strong>.
-                <br><br>Controleer ook jouw spammap.
-              </div>
-            </div>
-          `;
-        } else {
-          showStatus('Upload mislukt: ' + (data.error || 'Onbekende fout') + '. Probeer het opnieuw of stuur jouw brief naar info@incasso-check.nl.', 'error');
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Nu uploaden en analyse starten';
-        }
-      } catch (err) {
-        showStatus('Technische fout. Probeer het opnieuw of stuur jouw brief naar info@incasso-check.nl.', 'error');
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Nu uploaden en analyse starten';
-      }
-    }
-  </script>
 </body>
 </html>
