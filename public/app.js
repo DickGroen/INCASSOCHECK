@@ -1,4 +1,3 @@
-
 // ── Teaser flow ───────────────────────────────────────────────────────────────
 
 async function handleFile(input) {
@@ -46,7 +45,13 @@ async function handleFile(input) {
     let subText = 'Jouw incassobrief is geanalyseerd.';
     if (claimAmount) subText += ` Gevorderd bedrag: €${claimAmount}.`;
     if (senderType) subText += ` Type: ${senderType}.`;
-    subText += ' Aanvechtpotentieel: ' + riskLabel + '.';
+
+    const riskMessages = {
+      high: '🔴 Hoog aanvechtpotentieel — er lijken juridische fouten in deze brief te zitten.',
+      medium: '🟠 Mogelijk aanvechtpunten gevonden — een volledige check is aan te raden.',
+      low: '🟡 Laag risico — maar een check kan zekerheid geven.'
+    };
+    subText += ' ' + (riskMessages[risk] || '');
     teaserSub.textContent = subText;
 
     if (teaserLocked) {
